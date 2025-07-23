@@ -1,0 +1,16 @@
+{
+  "campuses": {
+    "main": {
+      "name": "Main Campus",
+      "wards": ["ICU", "Emergency Room", "Radiology", "Other"]
+    },
+    "outpatient": {
+      "name": "Outpatient Clinic",
+      "wards": ["General Clinic", "Other"]
+    },
+    "other": {
+      "name": "Other",
+      "wards": []
+    }
+  }
+}
