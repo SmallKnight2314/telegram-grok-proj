@@ -1,0 +1,162 @@
+{
+  "categories": {
+    "software": {
+      "team": "Software Team",
+      "prompt": "What type of software issue are you experiencing?",
+      "options": {
+        "epic_ehr": {
+          "prompt": "What specific issue are you facing with Epic EHR?",
+          "options": {
+            "1": {
+              "description": "Login failure",
+              "priority": "High"
+            },
+            "2": {
+              "description": "Data not syncing",
+              "priority": "High"
+            },
+            "other": {
+              "prompt": "Please describe the Epic EHR issue:",
+              "priority": "Medium"
+            }
+          }
+        },
+        "microsoft_teams": {
+          "prompt": "What specific issue are you facing with Microsoft Teams?",
+          "options": {
+            "3": {
+              "description": "Crashes on startup",
+              "priority": "High"
+            },
+            "4": {
+              "description": "Cannot join meetings",
+              "priority": "Medium"
+            },
+            "other": {
+              "prompt": "Please describe the Microsoft Teams issue:",
+              "priority": "Medium"
+            }
+          }
+        }
+      }
+    },
+    "hardware": {
+      "team": "Hardware Team",
+      "prompt": "What type of hardware issue are you experiencing?",
+      "options": {
+        "workstation": {
+          "prompt": "What specific issue are you facing with the workstation?",
+          "options": {
+            "5": {
+              "description": "Won't power on",
+              "priority": "Critical"
+            },
+            "6": {
+              "description": "Overheating",
+              "priority": "High"
+            },
+            "other": {
+              "prompt": "Please describe the workstation issue:",
+              "priority": "Medium"
+            }
+          }
+        },
+        "printer": {
+          "prompt": "What specific issue are you facing with the printer?",
+          "options": {
+            "7": {
+              "description": "Not printing",
+              "priority": "Medium"
+            },
+            "other": {
+              "prompt": "Please describe the printer issue:",
+              "priority": "Medium"
+            }
+          }
+        }
+      }
+    },
+    "network": {
+      "team": "Network Team",
+      "prompt": "What type of network issue are you experiencing?",
+      "options": {
+        "wifi": {
+          "prompt": "What specific issue are you facing with Wi-Fi?",
+          "options": {
+            "8": {
+              "description": "No connection",
+              "priority": "Critical"
+            },
+            "9": {
+              "description": "Slow connection",
+              "priority": "Medium"
+            },
+            "other": {
+              "prompt": "Please describe the Wi-Fi issue:",
+              "priority": "Medium"
+            }
+          }
+        },
+        "vpn": {
+          "prompt": "What specific issue are you facing with the VPN?",
+          "options": {
+            "10": {
+              "description": "Cannot connect",
+              "priority": "High"
+            },
+            "other": {
+              "prompt": "Please describe the VPN issue:",
+              "priority": "Medium"
+            }
+          }
+        }
+      }
+    },
+    "medical_device": {
+      "team": "Medical Device Team",
+      "prompt": "What type of medical device issue are you experiencing?",
+      "options": {
+        "mri_scanner": {
+          "prompt": "What specific issue are you facing with the MRI scanner?",
+          "options": {
+            "11": {
+              "description": "Calibration error",
+              "priority": "Critical"
+            },
+            "12": {
+              "description": "Image distortion",
+              "priority": "High"
+            },
+            "other": {
+              "prompt": "Please describe the MRI scanner issue:",
+              "priority": "Medium"
+            }
+          }
+        },
+        "patient_monitor": {
+          "prompt": "What specific issue are you facing with the patient monitor?",
+          "options": {
+            "13": {
+              "description": "Display failure",
+              "priority": "Critical"
+            },
+            "other": {
+              "prompt": "Please describe the patient monitor issue:",
+              "priority": "Medium"
+            }
+          }
+        }
+      }
+    },
+    "other": {
+      "team": "General IT",
+      "prompt": "Please describe the issue category:",
+      "options": {
+        "other": {
+          "prompt": "Please describe the issue in detail:",
+          "priority": "Medium"
+        }
+      }
+    }
+  }
+}
