@@ -8,16 +8,13 @@
           "prompt": "What specific issue are you facing with Epic EHR?",
           "options": {
             "1": {
-              "description": "Login failure",
-              "priority": "High"
+              "description": "Login failure"
             },
             "2": {
-              "description": "Data not syncing",
-              "priority": "High"
+              "description": "Data not syncing"
             },
             "other": {
-              "prompt": "Please describe the Epic EHR issue:",
-              "priority": "Medium"
+              "prompt": "Please describe the Epic EHR issue:"
             }
           }
         },
@@ -25,16 +22,13 @@
           "prompt": "What specific issue are you facing with Microsoft Teams?",
           "options": {
             "3": {
-              "description": "Crashes on startup",
-              "priority": "High"
+              "description": "Crashes on startup"
             },
             "4": {
-              "description": "Cannot join meetings",
-              "priority": "Medium"
+              "description": "Cannot join meetings"
             },
             "other": {
-              "prompt": "Please describe the Microsoft Teams issue:",
-              "priority": "Medium"
+              "prompt": "Please describe the Microsoft Teams issue:"
             }
           }
         }
@@ -48,16 +42,13 @@
           "prompt": "What specific issue are you facing with the workstation?",
           "options": {
             "5": {
-              "description": "Won't power on",
-              "priority": "Critical"
+              "description": "Won't power on"
             },
             "6": {
-              "description": "Overheating",
-              "priority": "High"
+              "description": "Overheating"
             },
             "other": {
-              "prompt": "Please describe the workstation issue:",
-              "priority": "Medium"
+              "prompt": "Please describe the workstation issue:"
             }
           }
         },
@@ -65,12 +56,10 @@
           "prompt": "What specific issue are you facing with the printer?",
           "options": {
             "7": {
-              "description": "Not printing",
-              "priority": "Medium"
+              "description": "Not printing"
             },
             "other": {
-              "prompt": "Please describe the printer issue:",
-              "priority": "Medium"
+              "prompt": "Please describe the printer issue:"
             }
           }
         }
@@ -84,29 +73,13 @@
           "prompt": "What specific issue are you facing with Wi-Fi?",
           "options": {
             "8": {
-              "description": "No connection",
-              "priority": "Critical"
+              "description": "No connection"
             },
             "9": {
-              "description": "Slow connection",
-              "priority": "Medium"
+              "description": "Slow connection"
             },
             "other": {
-              "prompt": "Please describe the Wi-Fi issue:",
-              "priority": "Medium"
-            }
-          }
-        },
-        "vpn": {
-          "prompt": "What specific issue are you facing with the VPN?",
-          "options": {
-            "10": {
-              "description": "Cannot connect",
-              "priority": "High"
-            },
-            "other": {
-              "prompt": "Please describe the VPN issue:",
-              "priority": "Medium"
+              "prompt": "Please describe the Wi-Fi issue:"
             }
           }
         }
@@ -119,30 +92,25 @@
         "mri_scanner": {
           "prompt": "What specific issue are you facing with the MRI scanner?",
           "options": {
-            "11": {
-              "description": "Calibration error",
-              "priority": "Critical"
+            "10": {
+              "description": "Calibration error"
             },
-            "12": {
-              "description": "Image distortion",
-              "priority": "High"
+            "11": {
+              "description": "Image distortion"
             },
             "other": {
-              "prompt": "Please describe the MRI scanner issue:",
-              "priority": "Medium"
+              "prompt": "Please describe the MRI scanner issue:"
             }
           }
         },
         "patient_monitor": {
           "prompt": "What specific issue are you facing with the patient monitor?",
           "options": {
-            "13": {
-              "description": "Display failure",
-              "priority": "Critical"
+            "12": {
+              "description": "Display failure"
             },
             "other": {
-              "prompt": "Please describe the patient monitor issue:",
-              "priority": "Medium"
+              "prompt": "Please describe the patient monitor issue:"
             }
           }
         }
@@ -153,8 +121,7 @@
       "prompt": "Please describe the issue category:",
       "options": {
         "other": {
-          "prompt": "Please describe the issue in detail:",
-          "priority": "Medium"
+          "prompt": "Please describe the issue in detail:"
         }
       }
     }
