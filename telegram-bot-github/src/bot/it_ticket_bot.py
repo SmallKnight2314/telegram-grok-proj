@@ -1,4 +1,5 @@
 # it_ticket_bot.py
+# it_ticket_bot.py
 import logging
 from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters
 from src.dialog.bot_dialog import BotDialog, States
@@ -15,9 +16,10 @@ class ITTicketBot:
             logger.error("TELEGRAM_TOKEN is missing or invalid")
             raise ValueError("TELEGRAM_TOKEN is required")
         self.token = token
-        self.email_service = EmailService(smtp_server, smtp_port, email_sender, email_password, email_recipient)
+        self.email_service = EmailService(smtp_server, smtp_port, email_sender, email_password)
         self.form_data = FormData()
-        self.dialog = BotDialog(self.form_data, self.email_service)
+        self.email_recipient = email_recipient  # Store IT support email
+        self.dialog = BotDialog(self.form_data, self.email_service, self.email_recipient)
         self.application = Application.builder().token(self.token).build()
         logger.debug("ITTicketBot initialized")
 
