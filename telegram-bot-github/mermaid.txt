@@ -1,0 +1,67 @@
+```mermaid
+graph TD
+    A[Start: /start] -->|Prompt for category| B{CATEGORY}
+    B -->|Valid category| C[Prompt for component]
+    B -->|Invalid category| B1[Reprompt category]
+    B -->|PANIC| Z[PANIC: Call IT, End]
+    B -->|/cancel| Y2[Cancel message, End]
+    B1 --> B
+    C -->|Valid component| D{COMPONENT}
+    C -->|PANIC| Z
+    C -->|/cancel| Y2
+    D -->|Valid component| E[Prompt for issue]
+    D -->|Invalid component| D1[Reprompt component]
+    D1 --> D
+    E -->|Valid issue| F{ISSUE}
+    E -->|PANIC| Z
+    E -->|/cancel| Y2
+    F -->|Issue != 'other'| G[Prompt for campus]
+    F -->|Issue = 'other'| H[Prompt for other issue]
+    F -->|Invalid issue| F1[Reprompt issue]
+    F1 --> F
+    H -->|Valid description| I{OTHER_ISSUE}
+    H -->|PANIC| Z
+    H -->|/cancel| Y2
+    I -->|Store description| G
+    G -->|Valid campus| J{CAMPUS}
+    G -->|Invalid campus| G1[Reprompt campus]
+    G -->|PANIC| Z
+    G -->|/cancel| Y2
+    J -->|Valid campus| K[Prompt for ward]
+    J -->|PANIC| Z
+    J -->|/cancel| Y2
+    K -->|Valid ward| L{WARD}
+    K -->|PANIC| Z
+    K -->|/cancel| Y2
+    L -->|Store ward| M[Prompt for department]
+    M -->|Valid department| N{DEPARTMENT}
+    M -->|PANIC| Z
+    M -->|/cancel| Y2
+    N -->|Valid department| O[Prompt for name]
+    N -->|Invalid department| N1[Reprompt department]
+    N1 --> N
+    O -->|Valid name| P{NAME}
+    O -->|PANIC| Z
+    O -->|/cancel| Y2
+    P -->|Store name| Q[Prompt for phone]
+    Q -->|Valid phone or contact| R{PHONE}
+    Q -->|PANIC| Z
+    Q -->|/cancel| Y2
+    R -->|Store phone| S[Prompt for email]
+    S -->|Valid email| T{EMAIL}
+    S -->|Invalid email| S1[Reprompt email]
+    S1 --> S
+    T -->|Store email| U[Prompt for description]
+    U -->|Valid description or Skip| V{DESCRIPTION}
+    U -->|PANIC| Z
+    U -->|/cancel| Y2
+    V -->|Store data, Send email| W[Email sent?]
+    W -->|Success| X[Success message, End]
+    W -->|Failure| Y[Error message, End]
+    V -->|Error| V1[Reprompt description]
+    V1 --> V
+    Z --> END[ConversationHandler.END]
+    X --> END
+    Y --> END
+    Y2 -->|Clear data| END
+```
