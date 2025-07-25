@@ -24,9 +24,10 @@ class States(Enum):
     DESCRIPTION = 11
 
 class BotDialog:
-    def __init__(self, form_data, email_service):
+    def __init__(self, form_data, email_service, email_recipient):
         self.form_data = form_data
         self.email_service = email_service
+        self.email_recipient = email_recipient  # IT support email (e.g., it-support@hospital.com)
         with open('topics.json') as f:
             self.topics = json.load(f)
         with open('locations.json') as f:
@@ -256,7 +257,13 @@ class BotDialog:
             self.form_data.store(user_id, 'date', datetime.now().isoformat())
             form_data = self.form_data.get_form_data(user_id)
             try:
-                if self.email_service.send_email(form_data):
+                if self.email_service.send_email(
+                    form_data=form_data,
+                    user_id=user_id,
+                    from_email=context.user_data['email'],
+                    to_email=self.email_recipient,
+                    user_name=context.user_data['name']
+                ):
                     await update.message.reply_text(
                         "Your ticket has been submitted and will be reviewed by IT staff. Thank you!",
                         reply_markup=ReplyKeyboardRemove()
