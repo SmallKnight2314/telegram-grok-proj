@@ -15,18 +15,18 @@ def main():
     # Retrieve environment variables with defaults where appropriate
     token = os.getenv('TELEGRAM_TOKEN')
     smtp_server = os.getenv('SMTP_SERVER')
-    smtp_port = os.getenv('SMTP_PORT', '587')  # Default to 587 for TLS
-    email_sender = os.getenv('EMAIL_SENDER')
-    email_password = os.getenv('EMAIL_PASSWORD')
+    smtp_port = os.getenv('SMTP_PORT', '587')
+    smtp_username = os.getenv('SMTP_USERNAME')
+    smtp_password = os.getenv('SMTP_PASSWORD')
     email_recipient = os.getenv('EMAIL_RECIPIENT')
     
     # Validate required environment variables
-    if not all([token, smtp_server, email_sender, email_password, email_recipient]):
+    if not all([token, smtp_server, smtp_username, smtp_password, email_recipient]):
         missing = [var for var, val in [
             ('TELEGRAM_TOKEN', token),
             ('SMTP_SERVER', smtp_server),
-            ('EMAIL_SENDER', email_sender),
-            ('EMAIL_PASSWORD', email_password),
+            ('SMTP_USERNAME', smtp_username),
+            ('SMTP_PASSWORD', smtp_password),
             ('EMAIL_RECIPIENT', email_recipient)
         ] if not val]
         logger.error(f"Missing required environment variables: {', '.join(missing)}")
@@ -46,8 +46,8 @@ def main():
             token=token,
             smtp_server=smtp_server,
             smtp_port=smtp_port,
-            email_sender=email_sender,
-            email_password=email_password,
+            email_sender=smtp_username,
+            email_password=smtp_password,
             email_recipient=email_recipient
         )
         logger.info("ITTicketBot initialized successfully")
