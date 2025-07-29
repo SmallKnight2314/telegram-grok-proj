@@ -1,5 +1,4 @@
 # it_ticket_bot.py
-# it_ticket_bot.py
 import logging
 from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters
 from src.dialog.bot_dialog import BotDialog, States
@@ -18,7 +17,7 @@ class ITTicketBot:
         self.token = token
         self.email_service = EmailService(smtp_server, smtp_port, email_sender, email_password)
         self.form_data = FormData()
-        self.email_recipient = email_recipient  # Store IT support email
+        self.email_recipient = email_recipient
         self.dialog = BotDialog(self.form_data, self.email_service, self.email_recipient)
         self.application = Application.builder().token(self.token).build()
         logger.debug("ITTicketBot initialized")
@@ -33,8 +32,8 @@ class ITTicketBot:
                 States.ISSUE.value: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog.issue)],
                 States.OTHER_ISSUE.value: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog.other_issue)],
                 States.CAMPUS.value: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog.campus)],
-                States.WARD.value: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog.ward)],
                 States.DEPARTMENT.value: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog.department)],
+                States.ROOM.value: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog.room)],
                 States.NAME.value: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog.name)],
                 States.PHONE.value: [
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog.phone),
