@@ -16,8 +16,8 @@ class States(Enum):
     ISSUE = 3
     OTHER_ISSUE = 4
     CAMPUS = 5
-    WARD = 6
-    DEPARTMENT = 7
+    DEPARTMENT = 6
+    ROOM = 7
     NAME = 8
     PHONE = 9
     EMAIL = 10
@@ -27,13 +27,11 @@ class BotDialog:
     def __init__(self, form_data, email_service, email_recipient):
         self.form_data = form_data
         self.email_service = email_service
-        self.email_recipient = email_recipient  # IT support email (e.g., it-support@hospital.com)
-        with open('topics.json') as f:
+        self.email_recipient = email_recipient
+        with open('config/topics.json') as f:
             self.topics = json.load(f)
-        with open('locations.json') as f:
+        with open('config/locations.json') as f:
             self.locations = json.load(f)
-        with open('departments.json') as f:
-            self.departments = json.load(f)
         self.panic_option = "PANIC"
 
     async def start(self, update, context):
@@ -118,9 +116,9 @@ class BotDialog:
         elif issue_id:
             context.user_data['issue_id'] = issue_id
             context.user_data['description'] = issues[issue_id]['description']
-            keyboard = [[c['name'] for c in self.locations['campuses'].values()]]
+            keyboard = [[c['name'] for c in self.locations['campuses']]]
             await update.message.reply_text(
-                "Select your campus:",
+                self.locations['prompts']['campus']['en'],
                 reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
             )
             return States.CAMPUS.value
@@ -138,9 +136,9 @@ class BotDialog:
             return await self.panic(update, context)
         context.user_data['issue_id'] = 'other'
         context.user_data['description'] = description
-        keyboard = [[c['name'] for c in self.locations['campuses'].values()]]
+        keyboard = [[c['name'] for c in self.locations['campuses']]]
         await update.message.reply_text(
-            "Select your campus:",
+            self.locations['prompts']['campus']['en'],
             reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
         )
         return States.CAMPUS.value
@@ -149,51 +147,61 @@ class BotDialog:
         user_id = update.message.from_user.id
         campus = update.message.text
         logger.info(f"Received campus from user {user_id}: {campus}")
-        campus_key = next((k for k, v in self.locations['campuses'].items() if v['name'] == campus), None)
-        if campus_key:
+        campuses = [c['name'] for c in self.locations['campuses']]
+        if campus in campuses:
             context.user_data['campus'] = campus
-            wards = self.locations['campuses'][campus_key]['wards']
-            keyboard = [[ward] for ward in wards] if wards else [['Other']]
+            departments = [d['name'] for d in next(c['departments'] for c in self.locations['campuses'] if c['name'] == campus)]
+            keyboard = [[d] for d in departments]
             await update.message.reply_text(
-                "Select your ward:",
+                self.locations['prompts']['department']['en'],
                 reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
             )
-            return States.WARD.value
+            return States.DEPARTMENT.value
         await update.message.reply_text(
-            "Invalid campus. Please select one:",
-            reply_markup=ReplyKeyboardMarkup([[c['name'] for c in self.locations['campuses'].values()]], one_time_keyboard=True)
+            f"Invalid campus. {self.locations['prompts']['campus']['en']}",
+            reply_markup=ReplyKeyboardMarkup([[c] for c in campuses], one_time_keyboard=True)
         )
         return States.CAMPUS.value
-
-    async def ward(self, update, context):
-        user_id = update.message.from_user.id
-        ward = update.message.text
-        logger.info(f"Received ward from user {user_id}: {ward}")
-        context.user_data['ward'] = ward
-        keyboard = [[d['name'] for d in self.departments['departments'].values()]]
-        await update.message.reply_text(
-            "Select your department:",
-            reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
-        )
-        return States.DEPARTMENT.value
 
     async def department(self, update, context):
         user_id = update.message.from_user.id
         department = update.message.text
         logger.info(f"Received department from user {user_id}: {department}")
-        department_key = next((k for k, v in self.departments['departments'].items() if v['name'] == department), None)
-        if department_key:
+        campus = context.user_data['campus']
+        departments = next(c['departments'] for c in self.locations['campuses'] if c['name'] == campus)
+        department_names = [d['name'] for d in departments]
+        if department in department_names:
             context.user_data['department'] = department
+            dept_data = next(d for d in departments if d['name'] == department)
+            context.user_data['building'] = dept_data['building']
+            context.user_data['floor'] = dept_data['floor']
+            await update.message.reply_text(
+                self.locations['prompts']['room']['en'],
+                reply_markup=ReplyKeyboardRemove()
+            )
+            return States.ROOM.value
+        await update.message.reply_text(
+            f"Invalid department. {self.locations['prompts']['department']['en']}",
+            reply_markup=ReplyKeyboardMarkup([[d] for d in department_names], one_time_keyboard=True)
+        )
+        return States.DEPARTMENT.value
+
+    async def room(self, update, context):
+        user_id = update.message.from_user.id
+        room = update.message.text.strip()
+        logger.info(f"Received room from user {user_id}: {room}")
+        if re.match(self.locations['validation']['room'], room):
+            context.user_data['room'] = room
             await update.message.reply_text(
                 "Enter your name:",
                 reply_markup=ReplyKeyboardRemove()
             )
             return States.NAME.value
         await update.message.reply_text(
-            "Invalid department. Please select one:",
-            reply_markup=ReplyKeyboardMarkup([[d['name'] for d in self.departments['departments'].values()]], one_time_keyboard=True)
+            "Invalid room number. Please enter a valid room or office number (e.g., Room 204).",
+            reply_markup=ReplyKeyboardRemove()
         )
-        return States.DEPARTMENT.value
+        return States.ROOM.value
 
     async def name(self, update, context):
         user_id = update.message.from_user.id
@@ -249,8 +257,10 @@ class BotDialog:
             self.form_data.store(user_id, 'description', context.user_data['description'])
             self.form_data.store(user_id, 'team', context.user_data['team'])
             self.form_data.store(user_id, 'campus', context.user_data['campus'])
-            self.form_data.store(user_id, 'ward', context.user_data['ward'])
             self.form_data.store(user_id, 'department', context.user_data['department'])
+            self.form_data.store(user_id, 'building', context.user_data['building'])
+            self.form_data.store(user_id, 'floor', context.user_data['floor'])
+            self.form_data.store(user_id, 'room', context.user_data['room'])
             self.form_data.store(user_id, 'name', context.user_data['name'])
             self.form_data.store(user_id, 'phone', context.user_data['phone'])
             self.form_data.store(user_id, 'email', context.user_data['email'])
