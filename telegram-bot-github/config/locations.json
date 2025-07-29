@@ -1,1 +1,45 @@
-
+{
+  "campuses": [
+    {
+      "name": "Main Campus",
+      "departments": [
+        {"name": "Radiology", "building": "Building A", "floor": "2"},
+        {"name": "Nursing", "building": "Building A", "floor": "3"},
+        {"name": "IT Department", "building": "Building B", "floor": "1"},
+        {"name": "Other", "building": "Unknown", "floor": "Unknown"}
+      ]
+    },
+    {
+      "name": "Outpatient Clinic",
+      "departments": [
+        {"name": "Nursing", "building": "Building C", "floor": "1"},
+        {"name": "Other", "building": "Unknown", "floor": "Unknown"}
+      ]
+    },
+    {
+      "name": "Other",
+      "departments": [
+        {"name": "Other", "building": "Unknown", "floor": "Unknown"}
+      ]
+    }
+  ],
+  "prompts": {
+    "campus": {
+      "en": "Select your campus:",
+      "hu": "Válassza ki a kampuszt:"
+    },
+    "department": {
+      "en": "Select your department:",
+      "hu": "Válassza ki a részleget:"
+    },
+    "room": {
+      "en": "Enter the room or office number (e.g., Room 204):",
+      "hu": "Adja meg a szoba vagy iroda számát (pl. 204-es szoba):"
+    }
+  },
+  "validation": {
+    "campus": "^(Main Campus|Outpatient Clinic|Other)$",
+    "department": "dynamic",
+    "room": "^[A-Za-z0-9\\- ]+$"
+  }
+}
