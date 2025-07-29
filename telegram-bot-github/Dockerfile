@@ -5,11 +5,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY telegram_bot.py .
-COPY topics.json .
-COPY locations.json .
-COPY departments.json .
+COPY config/ ./config/
 COPY src/ ./src/
+COPY telegram_bot.py .
+
 
 # Install a lightweight init system (recommended for Python apps)
 RUN apt-get update && apt-get install -y --no-install-recommends dumb-init && \
