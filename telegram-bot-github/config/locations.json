@@ -35,11 +35,21 @@
     "room": {
       "en": "Enter the room or office number (e.g., Room 204):",
       "hu": "Adja meg a szoba vagy iroda számát (pl. 204-es szoba):"
+    },
+    "geolocation": {
+      "en": "Share your current location to help us pinpoint the issue (optional, press Skip):",
+      "hu": "Ossza meg aktuális helyét, hogy pontosíthassuk a probléma helyét (opcionális, nyomja meg a Kihagyás gombot):"
+    },
+    "media": {
+      "en": "Upload one image or video (up to 75MB) to describe the issue (optional, press Skip):",
+      "hu": "Töltsön fel egy képet vagy videót (max. 75 MB) a probléma leírásához (opcionális, nyomja meg a Kihagyás gombot):"
     }
   },
   "validation": {
     "campus": "^(Main Campus|Outpatient Clinic|Other)$",
     "department": "dynamic",
-    "room": "^[A-Za-z0-9\\- ]+$"
+    "room": "^[A-Za-z0-9\\- ]+$",
+    "geolocation": "location",
+    "media": "photo|video"
   }
 }
