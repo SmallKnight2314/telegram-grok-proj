@@ -2,39 +2,36 @@
 import telegram
 from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import ConversationHandler, MessageHandler, filters
-from enum import Enum
 import logging
 import json
 import re
+import os
 from datetime import datetime
+from src.data.form_data import FormData
+from src.services.email_service import EmailService
+from src.states import States
 
+# Configure logging for debugging and monitoring
 logger = logging.getLogger(__name__)
 
-class States(Enum):
-    CATEGORY = 1
-    COMPONENT = 2
-    ISSUE = 3
-    OTHER_ISSUE = 4
-    CAMPUS = 5
-    DEPARTMENT = 6
-    ROOM = 7
-    NAME = 8
-    PHONE = 9
-    EMAIL = 10
-    DESCRIPTION = 11
-
 class BotDialog:
-    def __init__(self, form_data, email_service, email_recipient):
+    def __init__(self, form_data: FormData, email_service: EmailService, email_recipient: str):
+        # Initialize dialog with dependencies and load configuration files
         self.form_data = form_data
         self.email_service = email_service
         self.email_recipient = email_recipient
+        # Load topics for categories, components, issues, and teams
         with open('config/topics.json') as f:
             self.topics = json.load(f)
+        # Load locations for campuses, departments, and prompts
         with open('config/locations.json') as f:
             self.locations = json.load(f)
         self.panic_option = "PANIC"
+        # Maximum media file size (75MB in bytes)
+        self.max_media_size = 75_000_000
 
-    async def start(self, update, context):
+    async def start(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle /start command to begin ticket submission
         user_id = update.message.from_user.id
         logger.info(f"Received /start from user {user_id}")
         keyboard = [[cat] for cat in self.topics['categories'].keys()] + [[self.panic_option]]
@@ -45,7 +42,8 @@ class BotDialog:
         )
         return States.CATEGORY.value
 
-    async def panic(self, update, context):
+    async def panic(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle PANIC button for urgent issues
         user_id = update.message.from_user.id
         logger.info(f"User {user_id} triggered PANIC button")
         self.form_data.clear(user_id)
@@ -55,7 +53,8 @@ class BotDialog:
         )
         return ConversationHandler.END
 
-    async def category(self, update, context):
+    async def category(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle category selection (e.g., hardware, software)
         user_id = update.message.from_user.id
         category = update.message.text
         logger.info(f"Received category from user {user_id}: {category}")
@@ -76,7 +75,8 @@ class BotDialog:
         )
         return States.CATEGORY.value
 
-    async def component(self, update, context):
+    async def component(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle component selection (e.g., printer, computer)
         user_id = update.message.from_user.id
         component = update.message.text
         category = context.user_data.get('category')
@@ -97,7 +97,8 @@ class BotDialog:
         )
         return States.COMPONENT.value
 
-    async def issue(self, update, context):
+    async def issue(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle issue selection or 'other'
         user_id = update.message.from_user.id
         issue = update.message.text
         category = context.user_data.get('category')
@@ -128,7 +129,8 @@ class BotDialog:
         )
         return States.ISSUE.value
 
-    async def other_issue(self, update, context):
+    async def other_issue(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle custom issue description for 'other'
         user_id = update.message.from_user.id
         description = update.message.text
         logger.info(f"Received other issue from user {user_id}: {description}")
@@ -143,7 +145,8 @@ class BotDialog:
         )
         return States.CAMPUS.value
 
-    async def campus(self, update, context):
+    async def campus(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle campus selection
         user_id = update.message.from_user.id
         campus = update.message.text
         logger.info(f"Received campus from user {user_id}: {campus}")
@@ -163,7 +166,8 @@ class BotDialog:
         )
         return States.CAMPUS.value
 
-    async def department(self, update, context):
+    async def department(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle department selection
         user_id = update.message.from_user.id
         department = update.message.text
         logger.info(f"Received department from user {user_id}: {department}")
@@ -186,24 +190,47 @@ class BotDialog:
         )
         return States.DEPARTMENT.value
 
-    async def room(self, update, context):
+    async def room(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle room number input
         user_id = update.message.from_user.id
         room = update.message.text.strip()
         logger.info(f"Received room from user {user_id}: {room}")
         if re.match(self.locations['validation']['room'], room):
             context.user_data['room'] = room
+            keyboard = [[KeyboardButton("Share Location", request_location=True), "Skip"]]
             await update.message.reply_text(
-                "Enter your name:",
-                reply_markup=ReplyKeyboardRemove()
+                self.locations['prompts']['geolocation']['en'],
+                reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
             )
-            return States.NAME.value
+            return States.GEOLOCATION.value
         await update.message.reply_text(
             "Invalid room number. Please enter a valid room or office number (e.g., Room 204).",
             reply_markup=ReplyKeyboardRemove()
         )
         return States.ROOM.value
 
-    async def name(self, update, context):
+    async def geolocation(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle optional geolocation sharing
+        user_id = update.message.from_user.id
+        if update.message.location:
+            # User shared location; store latitude and longitude
+            location = update.message.location
+            logger.info(f"Received geolocation from user {user_id}: ({location.latitude}, {location.longitude})")
+            context.user_data['latitude'] = location.latitude
+            context.user_data['longitude'] = location.longitude
+        else:
+            # User skipped geolocation
+            logger.info(f"User {user_id} skipped geolocation")
+            context.user_data['latitude'] = None
+            context.user_data['longitude'] = None
+        await update.message.reply_text(
+            "Enter your name:",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return States.NAME.value
+
+    async def name(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle name input
         user_id = update.message.from_user.id
         context.user_data['name'] = update.message.text
         logger.info(f"Received name from user {user_id}: {context.user_data['name']}")
@@ -213,7 +240,8 @@ class BotDialog:
         )
         return States.PHONE.value
 
-    async def phone(self, update, context):
+    async def phone(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle phone number input or contact sharing
         user_id = update.message.from_user.id
         if update.message.contact:
             context.user_data['phone'] = update.message.contact.phone_number
@@ -226,7 +254,8 @@ class BotDialog:
         )
         return States.EMAIL.value
 
-    async def email(self, update, context):
+    async def email(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle email input
         user_id = update.message.from_user.id
         email = update.message.text
         logger.info(f"Received email from user {user_id}: {email}")
@@ -237,20 +266,71 @@ class BotDialog:
             return States.EMAIL.value
         context.user_data['email'] = email
         await update.message.reply_text(
-            "Provide additional details (optional, press 'Skip' to submit):",
+            "Provide additional details (optional, press 'Skip' to proceed):",
             reply_markup=ReplyKeyboardMarkup([["Skip"]], one_time_keyboard=True)
         )
         return States.DESCRIPTION.value
 
-    async def description(self, update, context):
+    async def description(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle additional issue description
         user_id = update.message.from_user.id
         description = update.message.text
         logger.info(f"Received description from user {user_id}: {description}")
+        if description == "Skip" or not description:
+            context.user_data['description'] = context.user_data.get('description', 'No additional details provided')
+        else:
+            context.user_data['description'] = description
+        await update.message.reply_text(
+            self.locations['prompts']['media']['en'],
+            reply_markup=ReplyKeyboardMarkup([["Skip"]], one_time_keyboard=True)
+        )
+        return States.MEDIA.value
+
+    async def media(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        """Handle optional single media upload (image or video, <20MB)."""
+        user_id = update.message.from_user.id
+        if update.message.text == "Skip":
+            logger.info(f"User {user_id} skipped media upload")
+            context.user_data['media'] = None
+            return await self.submit_ticket(update, context)
+        media = update.message.photo[-1] if update.message.photo else update.message.video
+        if not media:
+            logger.warning(f"Invalid media type from user {user_id}")
+            await update.message.reply_text(
+                "Please upload an image or video (up to 20MB), or press Skip.",
+                reply_markup=ReplyKeyboardMarkup([["Skip"]], one_time_keyboard=True)
+            )
+            return States.MEDIA.value
+        file_size = media.file_size
+        max_media_size = 20_000_000  # 20MB for Telegram API limit
+        if file_size > max_media_size:
+            logger.warning(f"Media file too large from user {user_id}: {file_size} bytes")
+            await update.message.reply_text(
+                f"File too large (max 20MB, got {file_size // 1_000_000}MB). Please upload a smaller file or press Skip.",
+                reply_markup=ReplyKeyboardMarkup([["Skip"]], one_time_keyboard=True)
+            )
+            return States.MEDIA.value
         try:
-            if description == "Skip" or not description:
-                context.user_data['description'] = context.user_data.get('description', 'No additional details provided')
-            else:
-                context.user_data['description'] = description
+            file = await context.bot.get_file(media.file_id)
+            ext = '.jpg' if update.message.photo else '.mp4'
+            file_path = f"/app/tmp/{user_id}_{datetime.now().strftime('%Y%m%dT%H%M%S')}{ext}"
+            await file.download_to_drive(file_path)  # Updated to use download_to_drive
+            context.user_data['media'] = file_path
+            logger.info(f"Media file downloaded for user {user_id}: {file_path}")
+            return await self.submit_ticket(update, context)
+        except Exception as e:
+            logger.error(f"Failed to download media for user {user_id}: {str(e)}")
+            await update.message.reply_text(
+                "Failed to process media. Please try again or press Skip.",
+                reply_markup=ReplyKeyboardMarkup([["Skip"]], one_time_keyboard=True)
+            )
+            return States.MEDIA.value
+
+    async def submit_ticket(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Submit the ticket by storing data and sending email
+        user_id = update.message.from_user.id
+        try:
+            # Store all form data
             self.form_data.store(user_id, 'category', context.user_data['category'])
             self.form_data.store(user_id, 'component', context.user_data['component'])
             self.form_data.store(user_id, 'issue_id', context.user_data['issue_id'])
@@ -261,18 +341,24 @@ class BotDialog:
             self.form_data.store(user_id, 'building', context.user_data['building'])
             self.form_data.store(user_id, 'floor', context.user_data['floor'])
             self.form_data.store(user_id, 'room', context.user_data['room'])
+            self.form_data.store(user_id, 'latitude', context.user_data.get('latitude'))
+            self.form_data.store(user_id, 'longitude', context.user_data.get('longitude'))
+            self.form_data.store(user_id, 'media', context.user_data.get('media'))
             self.form_data.store(user_id, 'name', context.user_data['name'])
             self.form_data.store(user_id, 'phone', context.user_data['phone'])
             self.form_data.store(user_id, 'email', context.user_data['email'])
             self.form_data.store(user_id, 'date', datetime.now().isoformat())
+            # Send email with form data and optional media attachment
             form_data = self.form_data.get_form_data(user_id)
+            media_path = context.user_data.get('media')
             try:
                 if self.email_service.send_email(
                     form_data=form_data,
                     user_id=user_id,
                     from_email=context.user_data['email'],
                     to_email=self.email_recipient,
-                    user_name=context.user_data['name']
+                    user_name=context.user_data['name'],
+                    media_path=media_path
                 ):
                     await update.message.reply_text(
                         "Your ticket has been submitted and will be reviewed by IT staff. Thank you!",
@@ -289,19 +375,36 @@ class BotDialog:
                     "Failed to submit ticket due to an error. Please try again or contact IT directly.",
                     reply_markup=ReplyKeyboardRemove()
                 )
+            finally:
+                # Clean up temporary media file
+                if media_path and os.path.exists(media_path):
+                    try:
+                        os.remove(media_path)
+                        logger.info(f"Deleted temporary media file: {media_path}")
+                    except Exception as e:
+                        logger.error(f"Failed to delete media file {media_path}: {str(e)}")
             self.form_data.clear(user_id)
             return ConversationHandler.END
         except Exception as e:
-            logger.error(f"Error in description handler for user {user_id}: {str(e)}")
+            logger.error(f"Error in ticket submission for user {user_id}: {str(e)}")
             await update.message.reply_text(
                 "An error occurred. Please try again or select 'PANIC' to contact IT.",
                 reply_markup=ReplyKeyboardMarkup([[self.panic_option]], one_time_keyboard=True)
             )
-            return States.DESCRIPTION.value
+            return States.MEDIA.value
 
-    async def cancel(self, update, context):
+    async def cancel(self, update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+        # Handle /cancel command to abort ticket submission
         user_id = update.message.from_user.id
         logger.info(f"Received /cancel from user {user_id}")
+        # Clean up any temporary media file
+        media_path = context.user_data.get('media')
+        if media_path and os.path.exists(media_path):
+            try:
+                os.remove(media_path)
+                logger.info(f"Deleted temporary media file: {media_path}")
+            except Exception as e:
+                logger.error(f"Failed to delete media file {media_path}: {str(e)}")
         self.form_data.clear(user_id)
         await update.message.reply_text(
             "Ticket submission cancelled.",
