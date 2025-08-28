@@ -276,62 +276,65 @@ class BotDialog:
     async def issue(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         start_time = datetime.now()  # Annotation: Records start time to measure method execution duration.
         user_id = update.message.from_user.id  # Annotation: Extracts Telegram user ID for logging.
-        issue = update.message.text  # Annotation: Retrieves the issue input from the user.
+        issue = update.message.text  # Annotation: Retrieves issue input (e.g., "Login Issue (1)" or "other").
         category = context.user_data.get('category')  # Annotation: Retrieves stored category.
         component = context.user_data.get('component')  # Annotation: Retrieves stored component.
-        logger.info(f"Received issue from user {user_id}: {issue}")  # Annotation: Logs the received issue.
+        logger.info(f"Received issue from user {user_id}: {issue}")  # Annotation: Logs the issue input.
 
-        if issue.lower() == self.panic_option.lower():  # Annotation: Checks if input is "panic" (case-insensitive).
-            return await self.panic(update, context)  # Annotation: Calls panic method for emergency handling.
+        if issue.lower() == self.panic_option.lower():  # Annotation: Checks for PANIC option.
+            return await self.panic(update, context)  # Annotation: Calls panic method.
 
-        issues = self.topics['categories'][category]['options'][component]['options']  # Annotation: Retrieves issues for the component from topics.json.
-        issue_id = next((k for k, v in issues.items() if v.get('description') == issue.split(' (')[0]), None)  # Annotation: Finds issue ID by matching description (strips ID from display text).
-        if issue == 'other':  # Annotation: Checks if user selected 'other' issue.
+        issues = self.topics['categories'][category]['options'][component]['options']  # Annotation: Retrieves issues from topics.json.
+        issue_id = next((k for k, v in issues.items() if issue.endswith(f"({k})")), None)  # Annotation: Extracts issue_id from input (e.g., "1" from "Login Issue (1)").
+        if issue == 'other':  # Annotation: Handles 'other' issue selection.
             await update.message.reply_text(
                 issues['other']['prompt'],
                 reply_markup=ReplyKeyboardMarkup([[self.panic_option]], one_time_keyboard=True)
-            )  # Annotation: Sends prompt for custom issue description with PANIC button.
+            )  # Annotation: Sends prompt for custom issue description.
             logger.debug(f"issue method took {(datetime.now() - start_time).total_seconds()} seconds")  # Annotation: Logs execution time.
             return States.OTHER_ISSUE.value  # Annotation: Transitions to OTHER_ISSUE state.
 
-        elif issue_id:  # Annotation: Checks if a valid issue ID was found.
-            context.user_data['issue_id'] = issue_id  # Annotation: Stores issue ID in context.user_data.
-            context.user_data['description'] = issues[issue_id]['description']  # Annotation: Stores predefined issue description.
-            keyboard = [[c['name']] for c in self.locations['campuses']] + [[self.panic_option]]  # Annotation: Creates a keyboard with campus names from locations.json.
-            logger.debug(f"Generated campus keyboard: {keyboard}")  # Annotation: Logs the campus keyboard.
+        elif issue_id and issue_id != 'other':  # Annotation: Handles valid predefined issue selection.
+            context.user_data['issue_id'] = issue_id  # Annotation: Stores issue_id.
+            context.user_data['description'] = issues[issue_id]['description']  # Annotation: Stores predefined description.
+            component_display_name = self.topics['categories'][category]['options'][component].get('display_name', component)  # Annotation: Gets component display_name or falls back to component key.
+            context.user_data['issue'] = f"{component_display_name} - {issues[issue_id]['description']} ({issue_id})"  # Annotation: Sets 'issue' as "component_display_name - description (id)".
+            keyboard = [[c['name']] for c in self.locations['campuses']] + [[self.panic_option]]  # Annotation: Creates campus keyboard.
+            logger.debug(f"Generated campus keyboard: {keyboard}")  # Annotation: Logs campus keyboard.
             await update.message.reply_text(
                 self.locations['prompts']['campus']['hu'],
                 reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
-            )  # Annotation: Sends campus selection prompt from locations.json.
+            )  # Annotation: Sends campus prompt.
             logger.debug(f"issue method took {(datetime.now() - start_time).total_seconds()} seconds")  # Annotation: Logs execution time.
             return States.CAMPUS.value  # Annotation: Transitions to CAMPUS state.
 
-        keyboard = [[f"{v['description']} ({k})"] for k, v in issues.items() if k != 'other'] + [['other'], [self.panic_option]]  # Annotation: Creates a keyboard with valid issues for error handling.
-        logger.debug(f"Generated issue error keyboard: {keyboard}")  # Annotation: Logs the error keyboard.
+        keyboard = [[f"{v['description']} ({k})"] for k, v in issues.items() if k != 'other'] + [['other'], [self.panic_option]]  # Annotation: Creates error keyboard.
+        logger.debug(f"Generated issue error keyboard: {keyboard}")  # Annotation: Logs error keyboard.
         await update.message.reply_text(
             f"Érvénytelen probléma. Kérem, válasszon egyet:",
             reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
-        )  # Annotation: Sends invalid issue message with issue keyboard.
+        )  # Annotation: Sends invalid issue message.
         logger.debug(f"issue method took {(datetime.now() - start_time).total_seconds()} seconds")  # Annotation: Logs execution time.
-        return States.ISSUE.value  # Annotation: Returns to ISSUE state for retry.
+        return States.ISSUE.value  # Annotation: Returns to ISSUE state.
 
     async def other_issue(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         start_time = datetime.now()  # Annotation: Records start time to measure method execution duration.
         user_id = update.message.from_user.id  # Annotation: Extracts Telegram user ID for logging.
-        description = update.message.text  # Annotation: Retrieves custom issue description.
-        logger.info(f"Received other issue from user {user_id}: {description}")  # Annotation: Logs the custom description.
+        description = update.message.text.strip()  # Annotation: Retrieves and strips custom description input.
+        logger.info(f"Received other issue from user {user_id}: {description}")  # Annotation: Logs custom description.
 
-        if description.lower() == self.panic_option.lower():  # Annotation: Checks if input is "panic" (case-insensitive).
-            return await self.panic(update, context)  # Annotation: Calls panic method for emergency handling.
+        if description.lower() == self.panic_option.lower():  # Annotation: Checks for PANIC option.
+            return await self.panic(update, context)  # Annotation: Calls panic method.
 
-        context.user_data['issue_id'] = 'other'  # Annotation: Stores 'other' as the issue ID.
-        context.user_data['description'] = description  # Annotation: Stores the custom description.
-        keyboard = [[c['name']] for c in self.locations['campuses']] + [[self.panic_option]]  # Annotation: Creates a keyboard with campus names.
-        logger.debug(f"Generated campus keyboard: {keyboard}")  # Annotation: Logs the campus keyboard.
+        context.user_data['issue_id'] = 'other'  # Annotation: Stores 'other' as issue_id.
+        context.user_data['description'] = description  # Annotation: Stores custom description.
+        context.user_data['issue'] = description  # Annotation: Stores custom description as 'issue' for 'other' case.
+        keyboard = [[c['name']] for c in self.locations['campuses']] + [[self.panic_option]]  # Annotation: Creates campus keyboard.
+        logger.debug(f"Generated campus keyboard: {keyboard}")  # Annotation: Logs campus keyboard.
         await update.message.reply_text(
             self.locations['prompts']['campus']['hu'],
             reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
-        )  # Annotation: Sends campus selection prompt from locations.json.
+        )  # Annotation: Sends campus prompt.
         logger.debug(f"other_issue method took {(datetime.now() - start_time).total_seconds()} seconds")  # Annotation: Logs execution time.
         return States.CAMPUS.value  # Annotation: Transitions to CAMPUS state.
 
@@ -495,11 +498,17 @@ class BotDialog:
             text = unicodedata.normalize('NFKC', description.strip()).lower()  # Annotation: Normalizes description for case-insensitive comparison.
             logger.debug(f"Normalized description input: {text}")  # Annotation: Logs normalized description.
             if text == "kihagy":  # Annotation: Checks if user chose to skip.
-                context.user_data['description'] = context.user_data.get('description', 'Nincs további részlet megadva')  # Annotation: Uses existing description or default.
+                if context.user_data.get('issue_id') != 'other':  # Annotation: Preserves predefined description for non-'other' issues.
+                    context.user_data['description'] = context.user_data.get('description', 'Nincs további részlet megadva')
+                else:  # Annotation: Sets default for 'other' issues if skipped.
+                    context.user_data['description'] = 'Nincs további részlet megadva'
             else:
                 context.user_data['description'] = description  # Annotation: Stores the provided description.
-        else:
-            context.user_data['description'] = context.user_data.get('description', 'Nincs további részlet megadva')  # Annotation: Uses existing description or default if none provided.
+        else:  # Annotation: Handles empty input (e.g., non-text message).
+            if context.user_data.get('issue_id') != 'other':  # Annotation: Preserves predefined description for non-'other' issues.
+                context.user_data['description'] = context.user_data.get('description', 'Nincs további részlet megadva')
+            else:  # Annotation: Sets default for 'other' issues.
+                context.user_data['description'] = 'Nincs további részlet megadva'
         keyboard = [["Kihagy"]]  # Annotation: Creates a keyboard with skip option for media.
         logger.debug(f"Generated media keyboard: {keyboard}")  # Annotation: Logs the media keyboard.
         await update.message.reply_text(
@@ -595,7 +604,8 @@ class BotDialog:
             self.form_data.store(user_id, 'category', context.user_data['category'])  # Annotation: Stores category using FormData.store (form_data.py).
             self.form_data.store(user_id, 'component', context.user_data['component'])  # Annotation: Stores component.
             self.form_data.store(user_id, 'issue_id', context.user_data['issue_id'])  # Annotation: Stores issue ID.
-            self.form_data.store(user_id, 'description', context.user_data['description'])  # Annotation: Stores issue description.
+            self.form_data.store(user_id, 'issue', context.user_data['issue'])  # Annotation: Stores computed 'issue' string (e.g., "Login Error (Unable to log in)" or custom description).
+            self.form_data.store(user_id, 'description', context.user_data['description'])  # Annotation: Stores issue description (predefined or custom).
             self.form_data.store(user_id, 'team', context.user_data['team'])  # Annotation: Stores team from topics.json.
             self.form_data.store(user_id, 'campus', context.user_data['campus'])  # Annotation: Stores campus from locations.json.
             self.form_data.store(user_id, 'department', context.user_data['department'])  # Annotation: Stores department.
@@ -620,11 +630,13 @@ class BotDialog:
                     user_name=context.user_data['name'],
                     media_path=media_path
                 ):  # Annotation: Calls EmailService.send_email (email_service.py) to send ticket data and optional media.
+                    logger.info(f"Ticket successfully sent for user {user_id}")  # Annotation: Logs successful ticket submission.
                     await update.message.reply_text(
                         "A jegy sikeresen elküldve, az IT munkatársak hamarosan felülvizsgálják. Köszönjük!",
                         reply_markup=ReplyKeyboardRemove()
                     )  # Annotation: Sends success message and removes keyboard.
                 else:
+                    logger.error(f"Email sending failed for user {user_id}: Unknown error")  # Annotation: Logs email sending failure.
                     await update.message.reply_text(
                         "Nem sikerült a jegy elküldése. Kérem, próbálja újra vagy lépjen kapcsolatba közvetlenül az IT-val.",
                         reply_markup=ReplyKeyboardRemove()
