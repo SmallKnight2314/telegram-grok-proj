@@ -1,83 +1,101 @@
-import logging  # Annotation: Imports the logging module for debug, info, warning, and error logging to monitor email sending.
-import smtplib  # Annotation: Imports smtplib for sending emails via SMTP.
-from email.mime.text import MIMEText  # Annotation: Imports MIMEText for creating the email body.
-from email.mime.multipart import MIMEMultipart  # Annotation: Imports MIMEMultipart for emails with attachments.
-from email.mime.base import MIMEBase  # Annotation: Imports MIMEBase for handling binary attachments (e.g., images/videos).
-from email import encoders  # Annotation: Imports encoders to encode binary attachments.
-from email.header import Header  # Annotation: Imports Header for proper encoding of non-ASCII email headers (e.g., From, Subject).
-from email.utils import formataddr  # Annotation: Imports formataddr to correctly format the From header with name and email.
-import os  # Annotation: Imports os module for file operations, such as checking media file existence.
+import logging
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+from email.header import Header
+from email.utils import formataddr
+import os
+import time  # Added for timing
+import re  # Added for email validation
 
-# Configure logging for debugging and monitoring
-logger = logging.getLogger(__name__)  # Annotation: Creates a logger instance for this module to log email-specific events.
+logger = logging.getLogger(__name__)
 
 class EmailService:
     def __init__(self, smtp_server: str, smtp_port: int, smtp_username: str, smtp_password: str):
-        # Initialize EmailService with SMTP configuration
-        self.smtp_server = smtp_server  # Annotation: Stores SMTP server address (e.g., 'smtp.example.com').
-        self.smtp_port = smtp_port  # Annotation: Stores SMTP port (e.g., 587 for TLS).
-        self.smtp_username = smtp_username  # Annotation: Stores SMTP username for authentication.
-        self.smtp_password = smtp_password  # Annotation: Stores SMTP password for authentication.
-        logger.debug(f"EmailService initialized with SMTP server: {smtp_server}:{smtp_port}")  # Annotation: Logs initialization details for debugging.
+        self.smtp_server = smtp_server
+        self.smtp_port = smtp_port
+        self.smtp_username = smtp_username
+        self.smtp_password = smtp_password
+        logger.debug(f"EmailService initialized with SMTP server: {smtp_server}:{smtp_port}")
 
-    def send_email(self, form_data: str, user_id: int, from_email: str, to_email: str, user_name: str, media_path: str = None) -> bool:
-        # Annotation: Sends an email with the ticket data and optional media attachment; returns True on success, False on failure.
-        start_time = logging.time.time()  # Annotation: Records start time to measure method execution duration.
-        logger.info(f"Attempting to send email for user {user_id} from {from_email} to {to_email}")  # Annotation: Logs email attempt details.
+    def send_email(self, form_data: dict, user_id: int, from_email: str, to_email: str, user_name: str, media_path: str = None) -> bool:
+        start_time = time.time()
+        logger.info(f"Attempting to send email for user {user_id} from {from_email} to {to_email}")
 
         try:
+            # Validate from_email format
+            if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', from_email):
+                logger.error(f"Invalid from_email format for user {user_id}: {from_email}")
+                return False
+
             # Create email message
-            msg = MIMEMultipart()  # Annotation: Initializes a multipart email to support text and attachments.
-            # Extract 'issue' from form_data by searching for "Issue: " prefix
-            issue = 'N/A'  # Annotation: Default value if 'issue' cannot be found.
-            for line in form_data.split('\n'):
-                if line.startswith('Issue: '):
-                    issue = line[len('Issue: '):]  # Annotation: Extracts the value after "Issue: ".
-                    break
-            logger.debug(f"Extracted issue from form_data: {issue}")  # Annotation: Logs the extracted issue.
+            msg = MIMEMultipart()
+            msg['From'] = formataddr((str(Header(user_name, 'utf-8')), from_email))
+            logger.debug(f"Set From header: {msg['From']}")
+            msg['To'] = to_email
+            msg['Subject'] = str(Header(f"chatbot: {form_data['issue']}", 'utf-8'))  # e.g., "chatbot: Ekon - Login Issue"
 
-            # Set From header with proper encoding
-            msg['From'] = formataddr((str(Header(user_name, 'utf-8')), from_email))  # Annotation: Encodes user_name with UTF-8 and formats as "Name <email>".
-            logger.debug(f"Set From header: {msg['From']}")  # Annotation: Logs the raw From header for debugging.
-            msg['To'] = to_email  # Annotation: Sets recipient email address.
-            msg['Subject'] = str(Header(f"IT Support Ticket - {issue}", 'utf-8'))  # Annotation: Sets subject with UTF-8 encoded issue (e.g., "IT Support Ticket - Alpha System - Login Issue (1)").
-
-            # Attach ticket data as email body
-            msg.attach(MIMEText(form_data, 'plain', 'utf-8'))  # Annotation: Attaches the formatted ticket data as plain text with UTF-8 encoding.
+            # Format email body
+            body = (
+                "IT Ticket Submission\n"
+                "-------------------\n"
+                f"User ID: {user_id}\n"
+                f"Name: {user_name}\n"
+                f"Email: {form_data.get('email', 'N/A')}\n"
+                f"Category: {form_data.get('category', 'N/A')}\n"
+                f"Component: {form_data.get('component', 'N/A')}\n"
+                f"Issue: {form_data.get('issue', 'N/A')}\n"
+                f"Description: {form_data.get('description', 'N/A')}\n"
+                f"Team: {form_data.get('team', 'N/A')}\n"
+                f"Campus: {form_data.get('campus', 'N/A')}\n"
+                f"Department: {form_data.get('department', 'N/A')}\n"
+                f"Building: {form_data.get('building', 'N/A')}\n"
+                f"Floor: {form_data.get('floor', 'N/A')}\n"
+                f"Room: {form_data.get('room', 'N/A')}\n"
+                f"Latitude: {form_data.get('latitude', 'N/A')}\n"
+                f"Longitude: {form_data.get('longitude', 'N/A')}\n"
+                f"Phone: {form_data.get('phone', 'N/A')}\n"
+                f"Date: {form_data.get('date', 'N/A')}\n"
+            )
+            logger.debug(f"Email body: {body}")
+            msg.attach(MIMEText(body, 'plain', 'utf-8'))
 
             # Attach media file if provided
-            if media_path and os.path.exists(media_path):  # Annotation: Checks if media_path is provided and file exists.
+            if media_path and os.path.exists(media_path):
                 try:
-                    with open(media_path, 'rb') as f:  # Annotation: Opens the media file in binary read mode.
-                        part = MIMEBase('application', 'octet-stream')  # Annotation: Creates a MIMEBase object for the attachment.
-                        part.set_payload(f.read())  # Annotation: Reads and sets the file content as the payload.
-                    encoders.encode_base64(part)  # Annotation: Encodes the attachment in base64 for email compatibility.
-                    filename = os.path.basename(media_path)  # Annotation: Extracts the filename for the attachment header.
+                    with open(media_path, 'rb') as f:
+                        part = MIMEBase('application', 'octet-stream')
+                        part.set_payload(f.read())
+                    encoders.encode_base64(part)
+                    filename = os.path.basename(media_path)
                     part.add_header(
                         'Content-Disposition',
                         f'attachment; filename={filename}'
-                    )  # Annotation: Sets the Content-Disposition header to mark as an attachment.
-                    msg.attach(part)  # Annotation: Attaches the media file to the email.
-                    logger.info(f"Attached media file to email: {media_path}")  # Annotation: Logs successful attachment.
+                    )
+                    msg.attach(part)
+                    file_size = os.path.getsize(media_path) / 1_000_000  # Size in MB
+                    logger.info(f"Attached media file to email: {media_path} ({file_size:.2f} MB)")
                 except Exception as e:
-                    logger.error(f"Failed to attach media file {media_path} for user {user_id}: {str(e)}")  # Annotation: Logs media attachment failure.
-                    return False  # Annotation: Returns False if attachment fails.
+                    logger.error(f"Failed to attach media file {media_path} for user {user_id}: {str(e)}")
+                    return False
 
             # Send email via SMTP
-            with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=30) as server:  # Annotation: Opens an SMTP connection with a 30-second timeout.
-                server.starttls()  # Annotation: Enables TLS for secure connection.
-                server.login(self.smtp_username, self.smtp_password)  # Annotation: Authenticates with SMTP server.
-                server.sendmail(from_email, to_email, msg.as_string())  # Annotation: Sends the email.
-                logger.info(f"Email successfully sent for user {user_id} to {to_email}")  # Annotation: Logs successful email send.
-                logger.debug(f"send_email method took {logging.time.time() - start_time} seconds")  # Annotation: Logs execution time.
-                return True  # Annotation: Returns True on success.
+            with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=60) as server:
+                server.starttls()
+                server.login(self.smtp_username, self.smtp_password)
+                server.sendmail(from_email, to_email, msg.as_string())
+                logger.info(f"Email successfully sent for user {user_id} to {to_email}")
+                logger.debug(f"send_email method took {time.time() - start_time:.2f} seconds")
+                return True
 
         except smtplib.SMTPAuthenticationError as e:
-            logger.error(f"SMTP authentication failed for user {user_id}: {str(e)}")  # Annotation: Logs authentication failure.
-            return False  # Annotation: Returns False for authentication errors.
+            logger.error(f"SMTP authentication failed for user {user_id}: {str(e)}")
+            return False
         except smtplib.SMTPException as e:
-            logger.error(f"SMTP error occurred for user {user_id}: {str(e)}")  # Annotation: Logs general SMTP errors (e.g., server down, recipient invalid).
-            return False  # Annotation: Returns False for SMTP errors.
+            logger.error(f"SMTP error occurred for user {user_id}: {str(e)}")
+            return False
         except Exception as e:
-            logger.error(f"Unexpected error in sending email for user {user_id}: {str(e)}")  # Annotation: Logs unexpected errors (e.g., network issues).
-            return False  # Annotation: Returns False for other errors.
+            logger.error(f"Unexpected error in sending email for user {user_id}: {str(e)}")
+            return False
