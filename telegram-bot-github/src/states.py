@@ -5,7 +5,6 @@ class States(Enum):  # Annotation: Defines States as an Enum class to represent 
     CATEGORY = 1  # Annotation: Represents the state for selecting a ticket category (e.g., szoftver), handled by BotDialog.category.
     COMPONENT = 2  # Annotation: Represents the state for selecting a component (e.g., Ecostat), handled by BotDialog.component.
     ISSUE = 3  # Annotation: Represents the state for selecting a specific issue (e.g., login error), handled by BotDialog.issue.
-    OTHER_ISSUE = 4  # Annotation: Represents the state for entering a custom issue description, handled by BotDialog.other_issue.
     CAMPUS = 5  # Annotation: Represents the state for selecting a campus (from locations.json), handled by BotDialog.campus.
     DEPARTMENT = 6  # Annotation: Represents the state for selecting a department (from locations.json), handled by BotDialog.department.
     ROOM = 7  # Annotation: Represents the state for entering a room number, handled by BotDialog.room.
