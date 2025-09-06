@@ -19,10 +19,6 @@
             "3": {
               "description": "Modify Access rights",
               "priority": "High"
-            },
-            "other": {
-              "prompt": "Please give a description of the problem:",
-              "priority": "Medium"
             }
           }
         },
@@ -33,10 +29,6 @@
             "8": {
               "description": "Access Rights",
               "priority": "High"
-            },
-            "other": {
-              "prompt": "Please give a description of the problem:",
-              "priority": "Medium"
             }
           }
         }
@@ -57,26 +49,6 @@
             "55": {
               "description": "IP Telephone",
               "priority": "Critical"
-            },
-            "other": {
-              "prompt": "Please give a description of the problem:",
-              "priority": "Medium"
-            }
-          }
-        }
-      }
-    },
-    "other": {
-      "team": "General IT problem",
-      "prompt": "Please give a description of the problem:",
-      "options": {
-        "general": {
-          "display_name": "General issue",
-          "prompt": "Please give a description of the problem:",
-          "options": {
-            "other": {
-              "prompt": "Please give a description of the problem:",
-              "priority": "Medium"
             }
           }
         }
