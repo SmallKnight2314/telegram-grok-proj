@@ -115,8 +115,8 @@ class BotDialog:
                 ticket_data = {
                     'category': context.user_data.get('category', 'N/A'),
                     'component': context.user_data.get('component', 'N/A'),
-                    'issue_id': context.user_data.get('issue_id', 'N/A'),
-                    'issue_description': context.user_data.get('description', 'N/A'),
+                    'issue': context.user_data.get('issue', 'N/A'),
+                    'description': context.user_data.get('description', 'N/A'),
                     'team': context.user_data.get('team', 'N/A'),
                     'campus': context.user_data.get('campus', 'N/A'),
                     'department': context.user_data.get('department', 'N/A'),
@@ -174,8 +174,8 @@ class BotDialog:
                 ticket_data = {
                     'category': context.user_data.get('category', 'N/A'),
                     'component': context.user_data.get('component', 'N/A'),
-                    'issue_id': context.user_data.get('issue_id', 'N/A'),
-                    'issue_description': context.user_data.get('description', 'N/A'),
+                    'issue': context.user_data.get('issue', 'N/A'),
+                    'description': context.user_data.get('description', 'N/A'),
                     'team': context.user_data.get('team', 'N/A'),
                     'campus': context.user_data.get('campus', 'N/A'),
                     'department': context.user_data.get('department', 'N/A'),
@@ -315,7 +315,10 @@ class BotDialog:
         issue_id = next((k for k, v in issues.items() if issue.endswith(f" ({k})")), None)
         if issue_id:
             context.user_data['issue_id'] = issue_id
-            context.user_data['description'] = issues[issue_id]['description']
+            display_name = self.topics['categories'][category]['options'][component].get('display_name', component)
+            issue_description = issues[issue_id]['description']
+            context.user_data['issue'] = f"{display_name} - {issue_description}"
+            context.user_data['description'] = issue_description  # For backward compatibility, if needed
             keyboard = [[c['name']] for c in self.locations['campuses']] + [[self.panic_option]]
             logger.debug(f"Generated campus keyboard: {keyboard}")
             await update.message.reply_text(
@@ -591,7 +594,7 @@ class BotDialog:
         user_id = update.message.from_user.id
         logger.info(f"Submitting ticket for user {user_id}")
 
-        required_fields = ['category', 'component', 'issue_id', 'description', 'team', 'campus', 'department', 'building', 'floor', 'room', 'name', 'phone', 'authenticated_email']
+        required_fields = ['category', 'component', 'issue_id', 'issue', 'description', 'team', 'campus', 'department', 'building', 'floor', 'room', 'name', 'phone', 'authenticated_email']
         missing_fields = [field for field in required_fields if field not in context.user_data]
         if missing_fields:
             logger.error(f"Missing required fields for user {user_id}: {missing_fields}")
@@ -605,7 +608,7 @@ class BotDialog:
             self.form_data.store(user_id, 'category', context.user_data['category'])
             self.form_data.store(user_id, 'component', context.user_data['component'])
             self.form_data.store(user_id, 'issue_id', context.user_data['issue_id'])
-            self.form_data.store(user_id, 'issue', context.user_data['description'])
+            self.form_data.store(user_id, 'issue', context.user_data['issue'])
             self.form_data.store(user_id, 'description', context.user_data['description'])
             self.form_data.store(user_id, 'team', context.user_data['team'])
             self.form_data.store(user_id, 'campus', context.user_data['campus'])
