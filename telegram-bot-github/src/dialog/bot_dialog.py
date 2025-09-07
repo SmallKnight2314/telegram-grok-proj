@@ -21,7 +21,8 @@ class BotDialog:
         self.form_data = form_data
         self.email_service = email_service
         self.email_recipient = email_recipient
-        self.blocked_users = {}  # Dictionary to store user_id: block_expiry
+        self.is_other_allowed = os.getenv("IS_OTHER_ALLOWED", "true").lower() == "true"
+        self.blocked_users = {}
         try:
             with open('config/topics.json') as f:
                 self.topics = json.load(f)
@@ -39,9 +40,11 @@ class BotDialog:
         except Exception as e:
             logger.error(f"Failed to load blocked_users.txt: {str(e)}")
         self.panic_option = "PANIC"
+        self.other_option = "Other"
         self.max_media_size = 20_000_000
         logger.debug(f"BotDialog initialized with categories: {list(self.topics['categories'].keys())}")
         logger.debug(f"Blocked users: {self.blocked_users}")
+        logger.debug(f"is_other_allowed: {self.is_other_allowed}")
 
     def load_blocked_users(self):
         try:
@@ -93,7 +96,11 @@ class BotDialog:
             logger.debug(f"Blocked user {user_id} attempted to start conversation")
             return ConversationHandler.END
         context.user_data.clear()
-        buttons = [[cat] for cat in self.topics['categories'].keys()] + [[self.panic_option]]
+        categories = list(self.topics['categories'].keys())
+        buttons = [[cat] for cat in categories]
+        if self.is_other_allowed:
+            buttons.append([self.other_option])
+        buttons.append([self.panic_option])
         logger.debug(f"Generated start keyboard: {buttons}")
         await update.message.reply_text(
             "Üdvözöljük a Kórházi IT Támogató Botban! Kezdjük a jegy létrehozását.\n"
@@ -218,27 +225,42 @@ class BotDialog:
         if category == self.panic_option.lower():
             return await self.panic(update, context)
 
-        if category in self.topics['categories']:
+        if category in self.topics['categories'] or (self.is_other_allowed and category == "other"):
             context.user_data['category'] = category
+            if category == "other":
+                context.user_data['team'] = "general team"
+                context.user_data['component'] = "other"
+                context.user_data['issue'] = "other"
+                context.user_data['issue_id'] = "other"
+                context.user_data['is_other_selected'] = True
+                logger.debug(f"User {user_id} selected 'other' category")
+                keyboard = [[c['name']] for c in self.locations['campuses']] + [[self.panic_option]]
+                await update.message.reply_text(
+                    self.locations['prompts']['campus']['hu'],
+                    reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
+                )
+                return States.CAMPUS.value
             context.user_data['team'] = self.topics['categories'][category]['team']
             components = list(self.topics['categories'][category]['options'].keys())
-            logger.debug(f"Generating keyboard for category {category}: {components}")
-            buttons = [[self.topics['categories'][category]['options'][comp].get('display_name', comp)] for comp in components] + [[self.panic_option]]
+            buttons = [[self.topics['categories'][category]['options'][comp].get('display_name', comp)] for comp in components]
+            if self.is_other_allowed:
+                buttons.append([self.other_option])
+            buttons.append([self.panic_option])
             reply_markup = ReplyKeyboardMarkup(buttons, one_time_keyboard=True)
             await update.message.reply_text(
                 self.topics['categories'][category]['prompt'],
                 reply_markup=reply_markup
             )
-            logger.debug(f"category method took {(datetime.now() - start_time).total_seconds()} seconds")
             return States.COMPONENT.value
 
-        buttons = [[cat] for cat in self.topics['categories'].keys()] + [[self.panic_option]]
-        logger.debug(f"Generated category error keyboard: {buttons}")
+        buttons = [[cat] for cat in self.topics['categories'].keys()]
+        if self.is_other_allowed:
+            buttons.append([self.other_option])
+        buttons.append([self.panic_option])
         await update.message.reply_text(
             f"Érvénytelen kategória. Kérem, válasszon egyet: {', '.join(self.topics['categories'].keys())}",
             reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True)
         )
-        logger.debug(f"category method took {(datetime.now() - start_time).total_seconds()} seconds")
         return States.CATEGORY.value
 
     async def component(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -251,8 +273,10 @@ class BotDialog:
         if not category or category not in self.topics['categories']:
             logger.error(f"Invalid or missing category: {category}")
             context.user_data.pop('category', None)
-            buttons = [[cat] for cat in self.topics['categories'].keys()] + [[self.panic_option]]
-            logger.debug(f"Generated component error keyboard (category invalid): {buttons}")
+            buttons = [[cat] for cat in self.topics['categories'].keys()]
+            if self.is_other_allowed:
+                buttons.append([self.other_option])
+            buttons.append([self.panic_option])
             await update.message.reply_text(
                 "Hiba: Kérem, válasszon egy kategóriát újra.",
                 reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True)
@@ -264,28 +288,44 @@ class BotDialog:
 
         options = self.topics['categories'][category]['options']
         components = {(options[comp].get('display_name', comp)).lower(): comp for comp in options.keys()}
-        logger.debug(f"Available components for {category}: {list(components.values())}")
+        if self.is_other_allowed and component.lower() == "other":
+            context.user_data['component'] = "other"
+            context.user_data['issue'] = f"{category} - Other"
+            context.user_data['issue_id'] = "other"
+            context.user_data['is_other_selected'] = True
+            logger.debug(f"User {user_id} selected 'other' component")
+            keyboard = [[c['name']] for c in self.locations['campuses']] + [[self.panic_option]]
+            await update.message.reply_text(
+                self.locations['prompts']['campus']['hu'],
+                reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
+            )
+            return States.CAMPUS.value
+
         if component.lower() in components:
             original_comp = components[component.lower()]
             context.user_data['component'] = original_comp
             issues = options[original_comp]['options']
-            keyboard = [[f"{v['description']} ({k})"] for k, v in issues.items()] + [[self.panic_option]]
-            logger.debug(f"Generated issue keyboard: {keyboard}")
+            issue_keys = list(issues.keys())
+            if self.is_other_allowed:
+                issue_keys.append("other")
+            keyboard = [[f"{issues.get(k, {}).get('description', k)} ({k})"] if k != "other" else ["Other"] for k in issue_keys] + [[self.panic_option]]
             await update.message.reply_text(
                 options[original_comp]['prompt'],
                 reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
             )
-            logger.debug(f"component method took {(datetime.now() - start_time).total_seconds()} seconds")
             return States.ISSUE.value
 
-        buttons = [[options[comp].get('display_name', comp)] for comp in options.keys()] + [[self.panic_option]]
+        buttons = [[options[comp].get('display_name', comp)] for comp in options.keys()]
+        if self.is_other_allowed:
+            buttons.append(["Other"])
+        buttons.append([self.panic_option])
         display_names = [options[comp].get('display_name', comp) for comp in options.keys()]
-        logger.debug(f"Generated component error keyboard: {buttons}")
+        if self.is_other_allowed:
+            display_names.append("Other")
         await update.message.reply_text(
             f"Érvénytelen komponens. Kérem, válasszon egyet: {', '.join(display_names)}",
             reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True)
         )
-        logger.debug(f"component method took {(datetime.now() - start_time).total_seconds()} seconds")
         return States.COMPONENT.value
 
     async def panic(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -303,7 +343,7 @@ class BotDialog:
     async def issue(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         start_time = datetime.now()
         user_id = update.message.from_user.id
-        issue = update.message.text
+        issue = update.message.text.strip()
         category = context.user_data.get('category')
         component = context.user_data.get('component')
         logger.info(f"Received issue from user {user_id}: {issue}")
@@ -313,12 +353,24 @@ class BotDialog:
 
         issues = self.topics['categories'][category]['options'][component]['options']
         issue_id = next((k for k, v in issues.items() if issue.endswith(f" ({k})")), None)
+        if self.is_other_allowed and issue.lower() == "other":
+            display_name = self.topics['categories'][category]['options'][component].get('display_name', component)
+            context.user_data['issue'] = f"{display_name} - Other"
+            context.user_data['issue_id'] = "other"
+            context.user_data['is_other_selected'] = True
+            logger.debug(f"User {user_id} selected 'other' issue")
+            keyboard = [[c['name']] for c in self.locations['campuses']] + [[self.panic_option]]
+            await update.message.reply_text(
+                self.locations['prompts']['campus']['hu'],
+                reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
+            )
+            return States.CAMPUS.value
+
         if issue_id:
-            context.user_data['issue_id'] = issue_id
             display_name = self.topics['categories'][category]['options'][component].get('display_name', component)
             issue_description = issues[issue_id]['description']
             context.user_data['issue'] = f"{display_name} - {issue_description}"
-            context.user_data['description'] = issue_description  # For backward compatibility, if needed
+            context.user_data['issue_id'] = issue_id
             keyboard = [[c['name']] for c in self.locations['campuses']] + [[self.panic_option]]
             logger.debug(f"Generated campus keyboard: {keyboard}")
             await update.message.reply_text(
@@ -328,7 +380,10 @@ class BotDialog:
             logger.debug(f"issue method took {(datetime.now() - start_time).total_seconds()} seconds")
             return States.CAMPUS.value
 
-        keyboard = [[f"{v['description']} ({k})"] for k, v in issues.items()] + [[self.panic_option]]
+        issue_keys = list(issues.keys())
+        if self.is_other_allowed:
+            issue_keys.append("other")
+        keyboard = [[f"{issues.get(k, {}).get('description', k)} ({k})"] if k != "other" else ["Other"] for k in issue_keys] + [[self.panic_option]]
         logger.debug(f"Generated issue error keyboard: {keyboard}")
         await update.message.reply_text(
             f"Érvénytelen probléma. Kérem, válasszon egyet:",
@@ -479,11 +534,12 @@ class BotDialog:
         else:
             context.user_data['phone'] = update.message.text
         logger.info(f"Received phone from user {user_id}: {context.user_data['phone']}")
-        keyboard = [["Kihagy"]]
-        logger.debug(f"Generated description keyboard: {keyboard}")
+        keyboard = [["Kihagy"]] if not context.user_data.get('is_other_selected') else []
+        prompt = "Kérem, adja meg a probléma részletes leírását:" if context.user_data.get('is_other_selected') else \
+                 "OPCIONÁLIS: Adjon meg további részleteket (vagy nyomja meg a 'Kihagy' gombot a folytatáshoz):"
         await update.message.reply_text(
-            "OPCIONÁLIS: Adjon meg további részleteket (vagy nyomja meg a 'Kihagy' gombot a folytatáshoz):",
-            reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
+            prompt,
+            reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True) if keyboard else ReplyKeyboardRemove()
         )
         logger.debug(f"phone method took {(datetime.now() - start_time).total_seconds()} seconds")
         return States.DESCRIPTION.value
@@ -493,15 +549,59 @@ class BotDialog:
         user_id = update.message.from_user.id
         description = update.message.text
         logger.info(f"Received description from user {user_id}: {description}")
-        if description:
-            text = unicodedata.normalize('NFKC', description.strip()).lower()
-            logger.debug(f"Normalized description input: {text}")
-            if text == "kihagy":
-                context.user_data['description'] = 'Nincs további részlet megadva'
-            else:
-                context.user_data['description'] = description
+
+        if context.user_data.get('is_other_selected'):
+            if not description or description.strip().lower() == "kihagy":
+                logger.warning(f"User {user_id} provided empty or 'Kihagy' description for 'Other' selection")
+                try:
+                    ticket_data = {
+                        'category': context.user_data.get('category', 'N/A'),
+                        'component': context.user_data.get('component', 'N/A'),
+                        'issue': context.user_data.get('issue', 'N/A'),
+                        'description': description or 'Empty',
+                        'team': context.user_data.get('team', 'N/A'),
+                        'campus': context.user_data.get('campus', 'N/A'),
+                        'department': context.user_data.get('department', 'N/A'),
+                        'building': context.user_data.get('building', 'N/A'),
+                        'floor': context.user_data.get('floor', 'N/A'),
+                        'room': context.user_data.get('room', 'N/A'),
+                        'latitude': context.user_data.get('latitude', None),
+                        'longitude': context.user_data.get('longitude', None),
+                        'media': context.user_data.get('media', None),
+                        'name': context.user_data.get('name', 'N/A'),
+                        'phone': context.user_data.get('phone', 'N/A')
+                    }
+                    log_entry = {
+                        'timestamp': datetime.now().isoformat(),
+                        'user_id': user_id,
+                        'description': description or 'Empty',
+                        'ticket_data': ticket_data,
+                        'reason': 'Invalid description for Other selection'
+                    }
+                    with abuse_file_lock:
+                        with open('/app/logs/abuse_attempts.txt', 'a', encoding='utf-8') as f:
+                            f.write(json.dumps(log_entry, ensure_ascii=False) + '\n')
+                    logger.info(f"Logged abuse attempt for user {user_id}: Invalid description for Other")
+                    self.block_user(user_id)
+                except Exception as e:
+                    logger.error(f"Failed to log abuse attempt for user {user_id}: {str(e)}")
+                await update.message.reply_text(
+                    "A probléma leírása kötelező, ha az 'Egyéb' opciót választotta. Kérem, adja meg a részleteket.",
+                    reply_markup=ReplyKeyboardRemove()
+                )
+                return States.DESCRIPTION.value
+            context.user_data['description'] = description
         else:
-            context.user_data['description'] = 'Nincs további részlet megadva'
+            if description:
+                text = unicodedata.normalize('NFKC', description.strip()).lower()
+                logger.debug(f"Normalized description input: {text}")
+                if text == "kihagy":
+                    context.user_data['description'] = 'Nincs további részlet megadva'
+                else:
+                    context.user_data['description'] = description
+            else:
+                context.user_data['description'] = 'Nincs további részlet megadva'
+
         keyboard = [["Kihagy"]]
         logger.debug(f"Generated media keyboard: {keyboard}")
         await update.message.reply_text(
@@ -523,7 +623,8 @@ class BotDialog:
                 logger.info(f"User {user_id} skipped media upload")
                 context.user_data['media'] = None
                 await update.message.reply_text(
-                    "Kérem adja meg a kapcsolattartó email címét:\n",
+                    "Adja meg email címét az autentikációhoz:\n"
+                    "Felhívjuk figyelmét, hogy minden tevékenységet figyelünk a visszaélések elkerülése érdekében.",
                     reply_markup=ReplyKeyboardRemove()
                 )
                 logger.debug(f"media method (kihagy) took {(datetime.now() - start_time).total_seconds()} seconds")
@@ -594,7 +695,7 @@ class BotDialog:
         user_id = update.message.from_user.id
         logger.info(f"Submitting ticket for user {user_id}")
 
-        required_fields = ['category', 'component', 'issue_id', 'issue', 'description', 'team', 'campus', 'department', 'building', 'floor', 'room', 'name', 'phone', 'authenticated_email']
+        required_fields = ['category', 'issue', 'description', 'team', 'campus', 'department', 'building', 'floor', 'room', 'name', 'phone', 'authenticated_email']
         missing_fields = [field for field in required_fields if field not in context.user_data]
         if missing_fields:
             logger.error(f"Missing required fields for user {user_id}: {missing_fields}")
@@ -606,13 +707,13 @@ class BotDialog:
 
         try:
             self.form_data.store(user_id, 'category', context.user_data['category'])
-            self.form_data.store(user_id, 'component', context.user_data['component'])
-            self.form_data.store(user_id, 'issue_id', context.user_data['issue_id'])
+            self.form_data.store(user_id, 'component', context.user_data.get('component', 'N/A'))
+            self.form_data.store(user_id, 'issue_id', context.user_data.get('issue_id', 'N/A'))
             self.form_data.store(user_id, 'issue', context.user_data['issue'])
             self.form_data.store(user_id, 'description', context.user_data['description'])
             self.form_data.store(user_id, 'team', context.user_data['team'])
             self.form_data.store(user_id, 'campus', context.user_data['campus'])
-            self.form_data.store(user_id, 'department', context.user_data['department'])
+            self.form_data.store(user_id, 'department', context.user_data.get('department'))
             self.form_data.store(user_id, 'building', context.user_data['building'])
             self.form_data.store(user_id, 'floor', context.user_data['floor'])
             self.form_data.store(user_id, 'room', context.user_data['room'])
