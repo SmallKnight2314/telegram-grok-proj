@@ -42,7 +42,6 @@ class BotDialog:
         self.panic_option = "PANIC"
         self.other_option = "Other"
         self.max_media_size = 20_000_000
-        self.max_description_length = 1000  # New: Maximum description length
         logger.debug(f"BotDialog initialized with categories: {list(self.topics['categories'].keys())}")
         logger.debug(f"Blocked users: {self.blocked_users}")
         logger.debug(f"is_other_allowed: {self.is_other_allowed}")
@@ -51,26 +50,40 @@ class BotDialog:
         try:
             with open('/app/logs/blocked_users.txt', 'r') as f:
                 for line in f:
-                    user_id, expiry = line.strip().split(',')
-                    self.blocked_users[int(user_id)] = datetime.fromisoformat(expiry)
+                    data = json.loads(line.strip())
+                    user_id = data['user_id']
+                    expiry = datetime.fromisoformat(data['expiry'])
+                    self.blocked_users[user_id] = {
+                        'expiry': expiry,
+                        'reason': data.get('reason', 'N/A'),
+                        'timestamp': data.get('timestamp', 'N/A'),
+                        'ticket_data': data.get('ticket_data', {})
+                    }
         except FileNotFoundError:
             logger.info("No blocked_users.txt found, starting with empty blocked_users")
         except Exception as e:
             logger.error(f"Error loading blocked_users.txt: {str(e)}")
             raise
 
-    def save_blocked_users(self, user_id: int, expiry: datetime):
+    def save_blocked_users(self, user_id: int, expiry: datetime, reason: str, timestamp: str, ticket_data: dict):
+        log_entry = {
+            'user_id': user_id,
+            'expiry': expiry.isoformat(),
+            'reason': reason,
+            'timestamp': timestamp,
+            'ticket_data': ticket_data
+        }
         with abuse_file_lock:
             try:
                 with open('/app/logs/blocked_users.txt', 'a') as f:
-                    f.write(f"{user_id},{expiry.isoformat()}\n")
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + '\n')
                 logger.info(f"Saved block for user {user_id} until {expiry.isoformat()}")
             except Exception as e:
                 logger.error(f"Failed to save block for user {user_id}: {str(e)}")
 
     def is_blocked(self, user_id: int) -> bool:
         if user_id in self.blocked_users:
-            expiry = self.blocked_users[user_id]
+            expiry = self.blocked_users[user_id]['expiry']
             if expiry is None or datetime.now() < expiry:
                 logger.debug(f"User {user_id} is blocked until {expiry}")
                 return True
@@ -79,11 +92,17 @@ class BotDialog:
                 logger.info(f"Block expired for user {user_id}")
         return False
 
-    def block_user(self, user_id: int, duration_seconds: int = 3600):
+    def block_user(self, user_id: int, duration_seconds: int = 3600, reason: str = "Invalid input", ticket_data: dict = {}):
         expiry = datetime.now() + timedelta(seconds=duration_seconds)
-        self.blocked_users[user_id] = expiry
-        self.save_blocked_users(user_id, expiry)
-        logger.info(f"User {user_id} blocked until {expiry.isoformat()}")
+        timestamp = datetime.now().isoformat()
+        self.blocked_users[user_id] = {
+            'expiry': expiry,
+            'reason': reason,
+            'timestamp': timestamp,
+            'ticket_data': ticket_data
+        }
+        self.save_blocked_users(user_id, expiry, reason, timestamp, ticket_data)
+        logger.info(f"User {user_id} blocked until {expiry.isoformat()} for reason: {reason}")
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         start_time = datetime.now()
@@ -147,7 +166,7 @@ class BotDialog:
                     with open('/app/logs/abuse_attempts.txt', 'a', encoding='utf-8') as f:
                         f.write(json.dumps(log_entry, ensure_ascii=False) + '\n')
                 logger.info(f"Logged abuse attempt for user {user_id}: {email} with ticket data")
-                self.block_user(user_id)
+                self.block_user(user_id, reason="Invalid email", ticket_data=ticket_data)
             except Exception as e:
                 logger.error(f"Failed to log abuse attempt for user {user_id}: {str(e)}")
             await update.message.reply_text(
@@ -206,7 +225,7 @@ class BotDialog:
                     with open('/app/logs/abuse_attempts.txt', 'a', encoding='utf-8') as f:
                         f.write(json.dumps(log_entry, ensure_ascii=False) + '\n')
                 logger.info(f"Logged abuse attempt for user {user_id}: {email} with ticket data")
-                self.block_user(user_id)
+                self.block_user(user_id, reason="Unauthorized email", ticket_data=ticket_data)
             except Exception as e:
                 logger.error(f"Failed to log abuse attempt for user {user_id}: {str(e)}")
             await update.message.reply_text(
@@ -551,17 +570,6 @@ class BotDialog:
         description = update.message.text
         logger.info(f"Received description from user {user_id}: {description}")
 
-        # Check character limit
-        if description and len(description) > self.max_description_length:
-            logger.warning(f"Description too long from user {user_id}: {len(description)} characters")
-            keyboard = [["Kihagy"]] if not context.user_data.get('is_other_selected') else []
-            await update.message.reply_text(
-                f"A leírás túl hosszú (max. {self.max_description_length} karakter). Kérem, rövidebben fogalmazza meg.",
-                reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True) if keyboard else ReplyKeyboardRemove()
-            )
-            logger.debug(f"description method (too long) took {(datetime.now() - start_time).total_seconds()} seconds")
-            return States.DESCRIPTION.value
-
         if context.user_data.get('is_other_selected'):
             if not description or description.strip().lower() == "kihagy":
                 logger.warning(f"User {user_id} provided empty or 'Kihagy' description for 'Other' selection")
@@ -601,7 +609,6 @@ class BotDialog:
                     "A probléma leírása kötelező, ha az 'Egyéb' opciót választotta. Kérem, adja meg a részleteket.",
                     reply_markup=ReplyKeyboardRemove()
                 )
-                logger.debug(f"description method (invalid for Other) took {(datetime.now() - start_time).total_seconds()} seconds")
                 return States.DESCRIPTION.value
             context.user_data['description'] = description
         else:
@@ -726,7 +733,7 @@ class BotDialog:
             self.form_data.store(user_id, 'description', context.user_data['description'])
             self.form_data.store(user_id, 'team', context.user_data['team'])
             self.form_data.store(user_id, 'campus', context.user_data['campus'])
-            self.form_data.store(user_id, 'department', context.user_data.get('department'))
+            self.form_data.store(user_id, 'department', context.user_data['department'])
             self.form_data.store(user_id, 'building', context.user_data['building'])
             self.form_data.store(user_id, 'floor', context.user_data['floor'])
             self.form_data.store(user_id, 'room', context.user_data['room'])
