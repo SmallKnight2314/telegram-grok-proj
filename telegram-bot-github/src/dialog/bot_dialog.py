@@ -42,6 +42,7 @@ class BotDialog:
         self.panic_option = "PANIC"
         self.other_option = "Other"
         self.max_media_size = 20_000_000
+        self.max_description_length = 1000  # New: Maximum description length
         logger.debug(f"BotDialog initialized with categories: {list(self.topics['categories'].keys())}")
         logger.debug(f"Blocked users: {self.blocked_users}")
         logger.debug(f"is_other_allowed: {self.is_other_allowed}")
@@ -550,6 +551,17 @@ class BotDialog:
         description = update.message.text
         logger.info(f"Received description from user {user_id}: {description}")
 
+        # Check character limit
+        if description and len(description) > self.max_description_length:
+            logger.warning(f"Description too long from user {user_id}: {len(description)} characters")
+            keyboard = [["Kihagy"]] if not context.user_data.get('is_other_selected') else []
+            await update.message.reply_text(
+                f"A leírás túl hosszú (max. {self.max_description_length} karakter). Kérem, rövidebben fogalmazza meg.",
+                reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True) if keyboard else ReplyKeyboardRemove()
+            )
+            logger.debug(f"description method (too long) took {(datetime.now() - start_time).total_seconds()} seconds")
+            return States.DESCRIPTION.value
+
         if context.user_data.get('is_other_selected'):
             if not description or description.strip().lower() == "kihagy":
                 logger.warning(f"User {user_id} provided empty or 'Kihagy' description for 'Other' selection")
@@ -589,6 +601,7 @@ class BotDialog:
                     "A probléma leírása kötelező, ha az 'Egyéb' opciót választotta. Kérem, adja meg a részleteket.",
                     reply_markup=ReplyKeyboardRemove()
                 )
+                logger.debug(f"description method (invalid for Other) took {(datetime.now() - start_time).total_seconds()} seconds")
                 return States.DESCRIPTION.value
             context.user_data['description'] = description
         else:
