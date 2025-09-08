@@ -4,7 +4,11 @@ from src.dialog.bot_dialog import BotDialog, States
 from src.data.form_data import FormData
 from src.services.email_service import EmailService
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    filename='/app/logs/bot_logs.txt',  # Ensure logs go to the file
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 class ITTicketBot:
@@ -30,6 +34,7 @@ class ITTicketBot:
                 States.COMPONENT.value: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog.component)],
                 States.ISSUE.value: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog.issue)],
                 States.CAMPUS.value: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog.campus)],
+                States.ADDRESS.value: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog.address)],  # Added ADDRESS handler
                 States.DEPARTMENT.value: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog.department)],
                 States.ROOM.value: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog.room)],
                 States.GEOLOCATION.value: [
