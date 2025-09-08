@@ -42,6 +42,8 @@ class BotDialog:
         self.panic_option = "PANIC"
         self.other_option = "Other"
         self.max_media_size = 20_000_000
+        self.max_description_length = 1000
+        self.max_address_length = 1000  # New: Maximum address length
         logger.debug(f"BotDialog initialized with categories: {list(self.topics['categories'].keys())}")
         logger.debug(f"Blocked users: {self.blocked_users}")
         logger.debug(f"is_other_allowed: {self.is_other_allowed}")
@@ -145,6 +147,7 @@ class BotDialog:
                     'issue': context.user_data.get('issue', 'N/A'),
                     'description': context.user_data.get('description', 'N/A'),
                     'team': context.user_data.get('team', 'N/A'),
+                    'address': context.user_data.get('address', 'N/A'),
                     'campus': context.user_data.get('campus', 'N/A'),
                     'department': context.user_data.get('department', 'N/A'),
                     'building': context.user_data.get('building', 'N/A'),
@@ -204,6 +207,7 @@ class BotDialog:
                     'issue': context.user_data.get('issue', 'N/A'),
                     'description': context.user_data.get('description', 'N/A'),
                     'team': context.user_data.get('team', 'N/A'),
+                    'address': context.user_data.get('address', 'N/A'),
                     'campus': context.user_data.get('campus', 'N/A'),
                     'department': context.user_data.get('department', 'N/A'),
                     'building': context.user_data.get('building', 'N/A'),
@@ -254,7 +258,10 @@ class BotDialog:
                 context.user_data['issue_id'] = "other"
                 context.user_data['is_other_selected'] = True
                 logger.debug(f"User {user_id} selected 'other' category")
-                keyboard = [[c['name']] for c in self.locations['campuses']] + [[self.panic_option]]
+                keyboard = [[c['name']] for c in self.locations['campuses']]
+                if self.is_other_allowed:
+                    keyboard.append([self.other_option])
+                keyboard.append([self.panic_option])
                 await update.message.reply_text(
                     self.locations['prompts']['campus']['hu'],
                     reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
@@ -314,7 +321,10 @@ class BotDialog:
             context.user_data['issue_id'] = "other"
             context.user_data['is_other_selected'] = True
             logger.debug(f"User {user_id} selected 'other' component")
-            keyboard = [[c['name']] for c in self.locations['campuses']] + [[self.panic_option]]
+            keyboard = [[c['name']] for c in self.locations['campuses']]
+            if self.is_other_allowed:
+                keyboard.append([self.other_option])
+            keyboard.append([self.panic_option])
             await update.message.reply_text(
                 self.locations['prompts']['campus']['hu'],
                 reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
@@ -379,7 +389,10 @@ class BotDialog:
             context.user_data['issue_id'] = "other"
             context.user_data['is_other_selected'] = True
             logger.debug(f"User {user_id} selected 'other' issue")
-            keyboard = [[c['name']] for c in self.locations['campuses']] + [[self.panic_option]]
+            keyboard = [[c['name']] for c in self.locations['campuses']]
+            if self.is_other_allowed:
+                keyboard.append([self.other_option])
+            keyboard.append([self.panic_option])
             await update.message.reply_text(
                 self.locations['prompts']['campus']['hu'],
                 reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
@@ -391,7 +404,10 @@ class BotDialog:
             issue_description = issues[issue_id]['description']
             context.user_data['issue'] = f"{display_name} - {issue_description}"
             context.user_data['issue_id'] = issue_id
-            keyboard = [[c['name']] for c in self.locations['campuses']] + [[self.panic_option]]
+            keyboard = [[c['name']] for c in self.locations['campuses']]
+            if self.is_other_allowed:
+                keyboard.append([self.other_option])
+            keyboard.append([self.panic_option])
             logger.debug(f"Generated campus keyboard: {keyboard}")
             await update.message.reply_text(
                 self.locations['prompts']['campus']['hu'],
@@ -415,10 +431,22 @@ class BotDialog:
     async def campus(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         start_time = datetime.now()
         user_id = update.message.from_user.id
-        campus = update.message.text
+        campus = update.message.text.strip()
         logger.info(f"Received campus from user {user_id}: {campus}")
 
+        if campus.lower() == self.panic_option.lower():
+            return await self.panic(update, context)
+
         campuses = [c['name'] for c in self.locations['campuses']]
+        if self.is_other_allowed and campus.lower() == "other":
+            context.user_data['is_other_location'] = True
+            logger.debug(f"User {user_id} selected 'other' location")
+            await update.message.reply_text(
+                "Kérem, adja meg a pontos címet:",
+                reply_markup=ReplyKeyboardRemove()
+            )
+            return States.ADDRESS.value
+
         if campus in campuses:
             context.user_data['campus'] = campus
             departments = [d['name'] for d in next(c['departments'] for c in self.locations['campuses'] if c['name'] == campus)]
@@ -431,7 +459,10 @@ class BotDialog:
             logger.debug(f"campus method took {(datetime.now() - start_time).total_seconds()} seconds")
             return States.DEPARTMENT.value
 
-        keyboard = [[c['name']] for c in self.locations['campuses']] + [[self.panic_option]]
+        keyboard = [[c['name']] for c in self.locations['campuses']]
+        if self.is_other_allowed:
+            keyboard.append([self.other_option])
+        keyboard.append([self.panic_option])
         logger.debug(f"Generated campus error keyboard: {keyboard}")
         await update.message.reply_text(
             f"Érvénytelen kampusz. {self.locations['prompts']['campus']['hu']}",
@@ -439,6 +470,75 @@ class BotDialog:
         )
         logger.debug(f"campus method took {(datetime.now() - start_time).total_seconds()} seconds")
         return States.CAMPUS.value
+
+    async def address(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        start_time = datetime.now()
+        user_id = update.message.from_user.id
+        address = update.message.text.strip()
+        logger.info(f"Received address from user {user_id}: {address}")
+
+        # Check character limit
+        if len(address) > self.max_address_length:
+            logger.warning(f"Address too long from user {user_id}: {len(address)} characters")
+            await update.message.reply_text(
+                f"A cím túl hosszú (max. {self.max_address_length} karakter). Kérem, rövidebben fogalmazza meg.",
+                reply_markup=ReplyKeyboardRemove()
+            )
+            logger.debug(f"address method (too long) took {(datetime.now() - start_time).total_seconds()} seconds")
+            return States.ADDRESS.value
+
+        # Validate non-empty address for "Other" location
+        if not address:
+            logger.warning(f"User {user_id} provided empty address for 'Other' location")
+            try:
+                ticket_data = {
+                    'category': context.user_data.get('category', 'N/A'),
+                    'component': context.user_data.get('component', 'N/A'),
+                    'issue': context.user_data.get('issue', 'N/A'),
+                    'description': context.user_data.get('description', 'N/A'),
+                    'team': context.user_data.get('team', 'N/A'),
+                    'address': address or 'Empty',
+                    'campus': context.user_data.get('campus', 'N/A'),
+                    'department': context.user_data.get('department', 'N/A'),
+                    'building': context.user_data.get('building', 'N/A'),
+                    'floor': context.user_data.get('floor', 'N/A'),
+                    'room': context.user_data.get('room', 'N/A'),
+                    'latitude': context.user_data.get('latitude', None),
+                    'longitude': context.user_data.get('longitude', None),
+                    'media': context.user_data.get('media', None),
+                    'name': context.user_data.get('name', 'N/A'),
+                    'phone': context.user_data.get('phone', 'N/A')
+                }
+                log_entry = {
+                    'timestamp': datetime.now().isoformat(),
+                    'user_id': user_id,
+                    'address': address or 'Empty',
+                    'ticket_data': ticket_data,
+                    'reason': 'Invalid address for Other location'
+                }
+                with abuse_file_lock:
+                    with open('/app/logs/abuse_attempts.txt', 'a', encoding='utf-8') as f:
+                        f.write(json.dumps(log_entry, ensure_ascii=False) + '\n')
+                logger.info(f"Logged abuse attempt for user {user_id}: Invalid address for Other")
+                self.block_user(user_id, reason="Invalid address for Other location", ticket_data=ticket_data)
+            except Exception as e:
+                logger.error(f"Failed to log abuse attempt for user {user_id}: {str(e)}")
+            await update.message.reply_text(
+                "A cím megadása kötelező, ha az 'Egyéb' helyszínt választotta. Kérem, adja meg a pontos címet.",
+                reply_markup=ReplyKeyboardRemove()
+            )
+            logger.debug(f"address method (invalid) took {(datetime.now() - start_time).total_seconds()} seconds")
+            return States.ADDRESS.value
+
+        context.user_data['address'] = address
+        keyboard = [[KeyboardButton("Hely megosztása", request_location=True)], ["Kihagy"]]
+        logger.debug(f"Generated geolocation keyboard: {keyboard}")
+        await update.message.reply_text(
+            self.locations['prompts']['geolocation']['hu'],
+            reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
+        )
+        logger.debug(f"address method took {(datetime.now() - start_time).total_seconds()} seconds")
+        return States.GEOLOCATION.value
 
     async def department(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         start_time = datetime.now()
@@ -570,6 +670,17 @@ class BotDialog:
         description = update.message.text
         logger.info(f"Received description from user {user_id}: {description}")
 
+        # Check character limit
+        if description and len(description) > self.max_description_length:
+            logger.warning(f"Description too long from user {user_id}: {len(description)} characters")
+            keyboard = [["Kihagy"]] if not context.user_data.get('is_other_selected') else []
+            await update.message.reply_text(
+                f"A leírás túl hosszú (max. {self.max_description_length} karakter). Kérem, rövidebben fogalmazza meg.",
+                reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True) if keyboard else ReplyKeyboardRemove()
+            )
+            logger.debug(f"description method (too long) took {(datetime.now() - start_time).total_seconds()} seconds")
+            return States.DESCRIPTION.value
+
         if context.user_data.get('is_other_selected'):
             if not description or description.strip().lower() == "kihagy":
                 logger.warning(f"User {user_id} provided empty or 'Kihagy' description for 'Other' selection")
@@ -580,6 +691,7 @@ class BotDialog:
                         'issue': context.user_data.get('issue', 'N/A'),
                         'description': description or 'Empty',
                         'team': context.user_data.get('team', 'N/A'),
+                        'address': context.user_data.get('address', 'N/A'),
                         'campus': context.user_data.get('campus', 'N/A'),
                         'department': context.user_data.get('department', 'N/A'),
                         'building': context.user_data.get('building', 'N/A'),
@@ -602,13 +714,14 @@ class BotDialog:
                         with open('/app/logs/abuse_attempts.txt', 'a', encoding='utf-8') as f:
                             f.write(json.dumps(log_entry, ensure_ascii=False) + '\n')
                     logger.info(f"Logged abuse attempt for user {user_id}: Invalid description for Other")
-                    self.block_user(user_id)
+                    self.block_user(user_id, reason="Invalid description for Other selection", ticket_data=ticket_data)
                 except Exception as e:
                     logger.error(f"Failed to log abuse attempt for user {user_id}: {str(e)}")
                 await update.message.reply_text(
                     "A probléma leírása kötelező, ha az 'Egyéb' opciót választotta. Kérem, adja meg a részleteket.",
                     reply_markup=ReplyKeyboardRemove()
                 )
+                logger.debug(f"description method (invalid for Other) took {(datetime.now() - start_time).total_seconds()} seconds")
                 return States.DESCRIPTION.value
             context.user_data['description'] = description
         else:
@@ -715,7 +828,11 @@ class BotDialog:
         user_id = update.message.from_user.id
         logger.info(f"Submitting ticket for user {user_id}")
 
-        required_fields = ['category', 'issue', 'description', 'team', 'campus', 'department', 'building', 'floor', 'room', 'name', 'phone', 'authenticated_email']
+        required_fields = ['category', 'issue', 'description', 'team', 'name', 'phone', 'authenticated_email']
+        if context.user_data.get('is_other_location'):
+            required_fields.append('address')
+        else:
+            required_fields.extend(['campus', 'department', 'building', 'floor', 'room'])
         missing_fields = [field for field in required_fields if field not in context.user_data]
         if missing_fields:
             logger.error(f"Missing required fields for user {user_id}: {missing_fields}")
@@ -732,11 +849,20 @@ class BotDialog:
             self.form_data.store(user_id, 'issue', context.user_data['issue'])
             self.form_data.store(user_id, 'description', context.user_data['description'])
             self.form_data.store(user_id, 'team', context.user_data['team'])
-            self.form_data.store(user_id, 'campus', context.user_data['campus'])
-            self.form_data.store(user_id, 'department', context.user_data['department'])
-            self.form_data.store(user_id, 'building', context.user_data['building'])
-            self.form_data.store(user_id, 'floor', context.user_data['floor'])
-            self.form_data.store(user_id, 'room', context.user_data['room'])
+            self.form_data.store(user_id, 'is_other_location', context.user_data.get('is_other_location', False))
+            if context.user_data.get('is_other_location'):
+                self.form_data.store(user_id, 'address', context.user_data['address'])
+                self.form_data.store(user_id, 'campus', 'N/A')
+                self.form_data.store(user_id, 'department', 'N/A')
+                self.form_data.store(user_id, 'building', 'N/A')
+                self.form_data.store(user_id, 'floor', 'N/A')
+                self.form_data.store(user_id, 'room', 'N/A')
+            else:
+                self.form_data.store(user_id, 'campus', context.user_data['campus'])
+                self.form_data.store(user_id, 'department', context.user_data['department'])
+                self.form_data.store(user_id, 'building', context.user_data['building'])
+                self.form_data.store(user_id, 'floor', context.user_data['floor'])
+                self.form_data.store(user_id, 'room', context.user_data['room'])
             self.form_data.store(user_id, 'latitude', context.user_data.get('latitude'))
             self.form_data.store(user_id, 'longitude', context.user_data.get('longitude'))
             self.form_data.store(user_id, 'media', context.user_data.get('media'))
@@ -750,14 +876,17 @@ class BotDialog:
             media_path = context.user_data.get('media')
             try:
                 logger.info(f"Attempting to send email for user {user_id} to {self.email_recipient}")
-                if self.email_service.send_email(
+                logger.debug(f"Email parameters: from_email={context.user_data['authenticated_email']}, to_email={self.email_recipient}, user_name={context.user_data['name']}, media_path={media_path}")
+                result = self.email_service.send_email(
                     form_data=form_data,
                     user_id=user_id,
                     from_email=context.user_data['authenticated_email'],
                     to_email=self.email_recipient,
                     user_name=context.user_data['name'],
                     media_path=media_path
-                ):
+                )
+                logger.debug(f"Email send result for user {user_id}: {result}")
+                if result:
                     logger.info(f"Ticket successfully sent for user {user_id}")
                     await update.message.reply_text(
                         "A bejelentést sikeresen rögzítettük, az IT munkatársak hamarosan megvizsgálják a jelzett problémát. Köszönjük közreműködését!",
@@ -770,7 +899,7 @@ class BotDialog:
                         reply_markup=ReplyKeyboardRemove()
                     )
             except Exception as e:
-                logger.error(f"Email sending failed for user {user_id}: {str(e)}")
+                logger.error(f"Email sending failed for user {user_id}: {str(e)}", exc_info=True)
                 await update.message.reply_text(
                     "Hiba történt az email küldése során. Kérem, próbálja újra vagy lépjen kapcsolatba az IT-val.",
                     reply_markup=ReplyKeyboardRemove()
@@ -786,7 +915,7 @@ class BotDialog:
             logger.debug(f"submit_ticket method (success) took {(datetime.now() - start_time).total_seconds()} seconds")
             return ConversationHandler.END
         except Exception as e:
-            logger.error(f"Error in ticket submission for user {user_id}: {str(e)}")
+            logger.error(f"Error in ticket submission for user {user_id}: {str(e)}", exc_info=True)
             await update.message.reply_text(
                 "Hiba történt. Kérem, próbálja újra vagy válassza a 'PANIC' opciót az IT-val való kapcsolatfelvételhez.",
                 reply_markup=ReplyKeyboardMarkup([[self.panic_option]], one_time_keyboard=True)
