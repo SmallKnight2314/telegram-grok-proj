@@ -1,17 +1,40 @@
-from enum import Enum  # Annotation: Imports Enum from the enum module to define a set of named constants for conversation states.
+# Import the IntEnum class from the enum module to create an enumeration with integer values
+from enum import IntEnum
 
-class States(Enum):  # Annotation: Defines States as an Enum class to represent conversation states, used in BotDialog (bot_dialog.py) and ITTicketBot (it_ticket_bot.py) for state transitions.
-    AUTH = 0  # Annotation: Represents the state for email authentication, handled by BotDialog.auth in bot_dialog.py.
-    CATEGORY = 1  # Annotation: Represents the state for selecting a ticket category (e.g., szoftver), handled by BotDialog.category.
-    COMPONENT = 2  # Annotation: Represents the state for selecting a component (e.g., Ecostat), handled by BotDialog.component.
-    ISSUE = 3  # Annotation: Represents the state for selecting a specific issue (e.g., login error), handled by BotDialog.issue.
-    CAMPUS = 4  # Annotation: Represents the state for selecting a campus (from locations.json), handled by BotDialog.campus.
-    DEPARTMENT = 5  # Annotation: Represents the state for selecting a department (from locations.json), handled by BotDialog.department.
-    ROOM = 6  # Annotation: Represents the state for entering a room number, handled by BotDialog.room.
-    GEOLOCATION = 7  # Annotation: Represents the state for optional geolocation sharing, handled by BotDialog.geolocation.
-    NAME = 8  # Annotation: Represents the state for entering the user's name, handled by BotDialog.name.
-    PHONE = 9  # Annotation: Represents the state for entering or sharing a phone number, handled by BotDialog.phone.
-    EMAIL = 10  # Annotation: Represents an unused state (email input moved to AUTH in current bot_dialog.py version).
-    DESCRIPTION = 11  # Annotation: Represents the state for entering additional ticket description, handled by BotDialog.description.
-    MEDIA = 12  # Annotation: Represents the state for uploading optional media (photo/video), handled by BotDialog.media.
-    ADDRESS = 13  # New state for address input
+# Print to console to confirm the states.py module is loaded
+print("Loading states.py module")
+
+# Define the States class as an IntEnum to assign integer values to conversation states
+class States(IntEnum):
+    # Authentication state for email validation (first state in flow, but used at the end)
+    AUTH = 0
+    # Category selection state for choosing the issue type (e.g., Hardware, Software)
+    CATEGORY = 1
+    # Component selection state for specifying the affected component (e.g., Printer, PC)
+    COMPONENT = 2
+    # Issue selection state for detailing the specific problem
+    ISSUE = 3
+    # Campus selection state for choosing the campus location
+    CAMPUS = 4
+    # Building selection state for choosing the building within the campus
+    BUILDING = 5
+    # Floor selection state for choosing the floor within the building
+    FLOOR = 6
+    # Department selection state for choosing the department on the floor
+    DEPARTMENT = 7
+    # Room input state for entering the room number
+    ROOM = 8
+    # Geolocation input state for sharing location (optional)
+    GEOLOCATION = 9
+    # Name input state for entering the user's name
+    NAME = 10
+    # Phone input state for entering the user's phone number or contact
+    PHONE = 11
+    # Description input state for providing issue details
+    DESCRIPTION = 12
+    # Team state (potentially unused in conversation flow, used for internal team assignment)
+    TEAM = 13
+    # Media upload state for attaching photos or videos (optional)
+    MEDIA = 14
+    # Address input state for free-text address when "Other" is selected
+    ADDRESS = 15
