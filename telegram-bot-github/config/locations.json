@@ -1,55 +1,268 @@
 {
   "campuses": [
     {
-      "name": "Main Campus",
-      "departments": [
-        {"name": "Radiology", "building": "Building A", "floor": "2"},
-        {"name": "Nursing", "building": "Building A", "floor": "3"},
-        {"name": "IT Department", "building": "Building B", "floor": "1"},
-        {"name": "Other", "building": "Unknown", "floor": "Unknown"}
+      "name": "Campus 1",
+      "buildings": [
+        {
+          "name": "Building A",
+          "floors": [
+            {
+              "name": "Floor 2",
+              "departments": [
+                {"name": "Radiology"},
+                {"name": "Other"}
+              ]
+            },
+            {
+              "name": "Floor 3",
+              "departments": [
+                {"name": "Nursing"},
+                {"name": "Other"}
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Building B",
+          "floors": [
+            {
+              "name": "Floor 1",
+              "departments": [
+                {"name": "IT Department"},
+                {"name": "Other"}
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Unknown",
+          "floors": [
+            {
+              "name": "Unknown",
+              "departments": [
+                {"name": "Other"}
+              ]
+            }
+          ]
+        }
       ]
     },
     {
-      "name": "Outpatient Clinic",
-      "departments": [
-        {"name": "Nursing", "building": "Building C", "floor": "1"},
-        {"name": "Other", "building": "Unknown", "floor": "Unknown"}
+      "name": "Campus 2",
+      "buildings": [
+        {
+          "name": "Building A",
+          "floors": [
+            {
+              "name": "Floor 2",
+              "departments": [
+                {"name": "Radiology"},
+                {"name": "Other"}
+              ]
+            },
+            {
+              "name": "Floor 3",
+              "departments": [
+                {"name": "Nursing"},
+                {"name": "Other"}
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Building B",
+          "floors": [
+            {
+              "name": "Floor 1",
+              "departments": [
+                {"name": "IT Department"},
+                {"name": "Other"}
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Unknown",
+          "floors": [
+            {
+              "name": "Unknown",
+              "departments": [
+                {"name": "Other"}
+              ]
+            }
+          ]
+        }
       ]
     },
     {
-      "name": "Other",
-      "departments": [
-        {"name": "Other", "building": "Unknown", "floor": "Unknown"}
+      "name": "Campus 3",
+      "buildings": [
+        {
+          "name": "Building A",
+          "floors": [
+            {
+              "name": "Floor 2",
+              "departments": [
+                {"name": "Radiology"},
+                {"name": "Other"}
+              ]
+            },
+            {
+              "name": "Floor 3",
+              "departments": [
+                {"name": "Nursing"},
+                {"name": "Other"}
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Building B",
+          "floors": [
+            {
+              "name": "Floor 1",
+              "departments": [
+                {"name": "IT Department"},
+                {"name": "Other"}
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Unknown",
+          "floors": [
+            {
+              "name": "Unknown",
+              "departments": [
+                {"name": "Other"}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Campus 4",
+      "buildings": [
+        {
+          "name": "Building A",
+          "floors": [
+            {
+              "name": "Floor 2",
+              "departments": [
+                {"name": "Radiology"},
+                {"name": "Other"}
+              ]
+            },
+            {
+              "name": "Floor 3",
+              "departments": [
+                {"name": "Nursing"},
+                {"name": "Other"}
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Building B",
+          "floors": [
+            {
+              "name": "Floor 1",
+              "departments": [
+                {"name": "IT Department"},
+                {"name": "Other"}
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Unknown",
+          "floors": [
+            {
+              "name": "Unknown",
+              "departments": [
+                {"name": "Other"}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Campus 5",
+      "buildings": [
+        {
+          "name": "Building A",
+          "floors": [
+            {
+              "name": "Floor 2",
+              "departments": [
+                {"name": "Radiology"},
+                {"name": "Other"}
+              ]
+            },
+            {
+              "name": "Floor 3",
+              "departments": [
+                {"name": "Nursing"},
+                {"name": "Other"}
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Building B",
+          "floors": [
+            {
+              "name": "Floor 1",
+              "departments": [
+                {"name": "IT Department"},
+                {"name": "Other"}
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Unknown",
+          "floors": [
+            {
+              "name": "Unknown",
+              "departments": [
+                {"name": "Other"}
+              ]
+            }
+          ]
+        }
       ]
     }
   ],
   "prompts": {
     "campus": {
-      "en": "Select your campus:",
-      "hu": "Válassza ki a kampuszt:"
+      "hu": "Kérem, válassza ki a kampuszt:"
+    },
+    "building": {
+      "hu": "Kérem, válassza ki az épületet:"
+    },
+    "floor": {
+      "hu": "Kérem, válassza ki az emeletet:"
     },
     "department": {
-      "en": "Select your department:",
-      "hu": "Válassza ki a részleget:"
+      "hu": "Kérem, válassza ki az osztályt:"
     },
     "room": {
-      "en": "Enter the room or office number (e.g., Room 204):",
-      "hu": "Adja meg a szoba vagy iroda számát (pl. 204-es szoba):"
+      "hu": "Kérem, adja meg a szoba vagy iroda számát:"
+    },
+    "address": {
+      "hu": "Kérem, adja meg a pontos címet:"
     },
     "geolocation": {
-      "en": "Share your current location to help us pinpoint the issue (optional, press Skip):",
-      "hu": "Ossza meg aktuális helyét, hogy pontosíthassuk a probléma helyét (opcionális, nyomja meg a Kihagyás gombot):"
+      "hu": "Kérem, ossza meg a helyet vagy válassza a 'Kihagy' opciót:"
     },
     "media": {
-      "en": "Upload one image or video (up to 75MB) to describe the issue (optional, press Skip):",
-      "hu": "Töltsön fel egy képet vagy videót (max. 75 MB) a probléma leírásához (opcionális, nyomja meg a Kihagyás gombot):"
+      "hu": "Kérem, töltsön fel egy képet vagy videót (max. 20MB), vagy válassza a 'Kihagy' opciót:"
     }
   },
   "validation": {
-    "campus": "^(Main Campus|Outpatient Clinic|Other)$",
-    "department": "dynamic",
-    "room": "^[A-Za-z0-9\\- ]+$",
-    "geolocation": "location",
-    "media": "photo|video"
+    "room": "^\\d+$"
   }
 }
