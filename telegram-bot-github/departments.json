@@ -1,0 +1,20 @@
+{
+  "departments": {
+    "radiology": {
+      "name": "Radiology",
+      "email": "radiology.it@hospital.com"
+    },
+    "nursing": {
+      "name": "Nursing",
+      "email": "nursing.it@hospital.com"
+    },
+    "it": {
+      "name": "IT Department",
+      "email": "it@hospital.com"
+    },
+    "other": {
+      "name": "Other",
+      "email": "support@hospital.com"
+    }
+  }
+}
